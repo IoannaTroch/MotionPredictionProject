@@ -1,4 +1,5 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
+# OLD
+# works with LSTM.py
 import os
 import sys
 from pathlib import Path
@@ -10,7 +11,7 @@ from ai4animation import (
     DataSampler,
     Dataset,
     FeedTensor,
-    LongShortTermMemory,  # swapped: was MultiLayerPerceptron
+    LongShortTermMemory,  
     MirrorModule,
     MotionEditor,
     MotionModule,
@@ -74,7 +75,7 @@ class Program:
         )
 
         self.Network = Tensor.ToDevice(
-            LongShortTermMemory.Model(  # swapped: was MultiLayerPerceptron.Model
+            LongShortTermMemory.Model(  
                 input_dim=INPUT_DIM,
                 hidden_dim=HIDDEN_DIM,
                 step_output_dim=STEP_OUTPUT_DIM,
@@ -136,11 +137,9 @@ class Program:
         mirrored = Tensor.RandomBool()
 
         inputs = FeedTensor("X", (len(timestamps), INPUT_DIM))
-        # FIX 1: sized to FUTURE_SAMPLES * STEP_OUTPUT_DIM instead of flat OUTPUT_DIM
-        # so the matrix pivot below can reshape into (batch, FUTURE_SAMPLES, STEP_OUTPUT_DIM)
+        
         outputs = FeedTensor("Y", (len(timestamps), FUTURE_SAMPLES * STEP_OUTPUT_DIM))
 
-        # root = motion.GetModule(RootModule).GetRootTransformations(timestamps, mirrored=mirrored)
         root = Tensor.Inverse(
             motion.GetModule(RootModule).GetTransforms(timestamps, mirrored=mirrored)
         )
@@ -184,13 +183,6 @@ class Program:
         outputs.Feed(Rotation.GetAxisZ(futureMotion))
         outputs.Feed(Rotation.GetAxisY(futureMotion))
 
-        # =========================================================================
-        # FIX 2: MATRIX PIVOT (Framework Feature-Grouped -> LSTM Time-Sequenced)
-        # The framework stacks all future samples of each feature contiguously:
-        # [root_pos x6, root_fwd x6, motion_pos x6, ...].
-        # The LSTM needs features interleaved per timestep:
-        # [t0_all_features, t1_all_features, ...].
-        # =========================================================================
         Y = outputs.GetTensor()
         batch_size = Y.shape[0]
         B = len(BONES)
@@ -207,12 +199,9 @@ class Program:
         idx += FUTURE_SAMPLES * B * 3
         motion_rot_y = Y[:, idx : idx + FUTURE_SAMPLES * B * 3].reshape(batch_size, FUTURE_SAMPLES, B * 3)
 
-        # Interleave by stacking along the feature dimension for each time step
         Y_interleaved = torch.cat([root_pos, root_fwd, motion_pos, motion_rot_z, motion_rot_y], dim=2)
 
-        # Flatten back to 2D so DataSampler doesn't crash during batch collation
         Y_final = Y_interleaved.reshape(batch_size, FUTURE_SAMPLES * STEP_OUTPUT_DIM)
-        # =========================================================================
 
         return (inputs.GetTensor(), Y_final)
 
@@ -233,11 +222,6 @@ class Program:
             xBatch = self.GetEditorFeatures().unsqueeze(0)
             yPred = self.Network(xBatch)
 
-            # =========================================================================
-            # FIX 3: MATRIX PIVOT (LSTM Time-Sequenced -> Framework Feature-Grouped)
-            # Inverse of FIX 2: unpack per-timestep features back into the contiguous
-            # grouped layout that ReadTensor / output.ReadVector3 expects.
-            # =========================================================================
             B = len(BONES)
             yPred_seq = yPred.reshape(1, FUTURE_SAMPLES, STEP_OUTPUT_DIM)
 
@@ -248,10 +232,8 @@ class Program:
             motion_rot_z = yPred_seq[:, :, 4 + B*3 : 4 + B*6].reshape(1, -1)
             motion_rot_y = yPred_seq[:, :, 4 + B*6 : 4 + B*9].reshape(1, -1)
 
-            # Concatenate into the flat grouped layout ReadTensor expects
             yPred_grouped = torch.cat([root_pos, root_fwd, motion_pos, motion_rot_z, motion_rot_y], dim=1)
 
-            # squeeze(0) removes the batch dim so ReadTensor receives a flat 1D array
             output = ReadTensor("Y", Tensor.ToNumPy(yPred_grouped.squeeze(0)))
             # =========================================================================
 
@@ -263,7 +245,7 @@ class Program:
                     output.ReadVector3(FUTURE_SAMPLES, True, False, True),
                     Rotation.Look(
                         output.ReadVector3(FUTURE_SAMPLES, True, False, True),
-                        Vector3.UnitY(FUTURE_SAMPLES),  # must match FUTURE_SAMPLES rows for Rotation.Look shape
+                        Vector3.UnitY(FUTURE_SAMPLES),  
                     ),
                 ),
                 root,
