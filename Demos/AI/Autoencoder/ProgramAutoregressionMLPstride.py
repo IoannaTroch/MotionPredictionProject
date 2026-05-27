@@ -1,4 +1,6 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
+# program for autoregressive MLP
+# predicts the next frame of motion based on past frames
+# uses a sliding window with specific stride 
 import os
 import sys
 from pathlib import Path

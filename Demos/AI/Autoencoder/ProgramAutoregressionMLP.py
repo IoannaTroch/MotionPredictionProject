@@ -1,4 +1,6 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
+# program for autoregressive MLP
+# predicts the next frame of motion based on past frames
+# uses a sliding window containing a number of past frames
 import os
 import sys
 from pathlib import Path
@@ -40,7 +42,7 @@ BONES = Definitions.FULL_BODY_NAMES # array of strings representing joints
 FRAME_DIM = 12 * len(BONES) # every joint has 12 dimensions
 # position 3, forward 3, upward 3, velocity 3
 HIDDEN_DIM = 512 # neurons in the hidden layers
-WINDOW_SIZE = 10 # it looks at the past 5 frames
+WINDOW_SIZE = 5 # it looks at the past 5 frames
 
 
 class Program:
