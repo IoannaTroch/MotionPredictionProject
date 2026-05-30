@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from ai4animation import (
     Actor,
     AI4Animation,
-    #Autoencoder,
     CosineAnnealingOptimizer,
     DataSampler,
     Dataset,
@@ -84,19 +83,11 @@ class Program:
             )
         )
 
-        self.Optimizer = CosineAnnealingOptimizer(#o optimizer pou exw pou allazei to lr me vash ena sunimitono (kalo gt kanw talantwseis
-            #glitwnw provlhmata megalou kai mikroy lr)
-            self.Network.parameters(),
-            self.DataSampler.BatchSize,
-            self.DataSampler.BatchCount,
-        )
-
-        self.LossHistory = Plotting.LossHistory(#plot to loss history
-            "Loss History",
-            horizon=self.DataSampler.BatchCount,
-            drawInterval=DRAW_INTERVAL,
-            yScale="log",
-        )
+        #exoume afairesei ton optimizer kai to loss history
+        #exw provlhma gia na ftiaksw to validation set
+        #error:Epoch size and batch size used in the training loop and while initializing scheduler should be the same.
+        #den proxwrane me ton idio tropo kathe epoxh ta batch pou kanw train se sxesh me ta batch pou perimene o scheduler
+        #tha valw ton optimizer afou kanw split gia na mhn exw auto to thema
 
         self.Trainer = self.Training()#ksekinaei training
 
@@ -130,6 +121,16 @@ class Program:
         train_batches = all_batches[:split_idx]
         val_batches = all_batches[split_idx:]
         
+        #upologizw sunoliko athroisma twn deigmatwn se ola ta training batches gia na to dwsw ston optimizer
+        #kai na mhn pathainei tso tso
+        total_train_samples = sum([batch.shape[0] for batch in train_batches])
+        
+        self.Optimizer = Utility.CosineAnnealingOptimizer(
+            self.Network.parameters(),
+            self.DataSampler.BatchSize,
+            total_train_samples 
+        )
+        
         #grapse poia batch einai gia ti
         print(f"Total batches: {total_batches} | Train: {len(train_batches)} | Val: {len(val_batches)}")
 
@@ -146,20 +147,26 @@ class Program:
             self.Network.train()
             epoch_train_loss = 0.0
             
-            for batch in train_batches:#training loop
+            for i, batch in enumerate(train_batches):#training loop
                 _, loss = self.Network.learn(batch, epoch == 1)
-                self.Optimizer.Update(loss) 
-                self.LossHistory.Add(loss)
                 
-                #an to loss einai leksiko kane auto
+                #kanw tensor to leksiko
                 if isinstance(loss, dict):
-                    #pare oles tis times apo to lektiko kai athroise tes
-                    batch_loss = sum(v.item() if hasattr(v, 'item') else v for v in loss.values())
+                    tensor_loss = sum(loss.values())
                 else:
-                    batch_loss = loss.item() if hasattr(loss, 'item') else loss
-                #prosthese sto loss ths epoxhs to loss autou tou batch    
-                epoch_train_loss += batch_loss
+                    tensor_loss = loss
+                
+                #update ta varh kalontas ton optimizer
+                self.Optimizer.Update(batch.shape[0], tensor_loss) 
+                
+                #prothetw loss
+                epoch_train_loss += tensor_loss.item()
+                
+                #progress = 100 * (i + 1) / len(train_batches)
+                #print(f"Training Progress: {progress:.1f}%", end="\r")
+                
                 yield
+            print(" " * 50, end="\r")
                 
             avg_train_loss = epoch_train_loss / len(train_batches)
             train_losses_history.append(avg_train_loss)
@@ -169,9 +176,9 @@ class Program:
             epoch_val_loss = 0.0
             #profanws den upologizoume ta grands sto validation
             with torch.no_grad(): 
-                for batch in val_batches:
-                    #pare to ekastote batch kai kanto tensora
-                    inputs_tensor = Tensor.ToDevice(torch.tensor(batch, dtype=torch.float32))
+                for i, batch in enumerate(val_batches):
+                    #pare to ekastote batch kai kanto tensora xwris warnings
+                    inputs_tensor = Tensor.ToDevice(batch.clone().detach().float())
 
                     #GIA VAE AUTOENCODER    
                     #kanonikopoihsh twn dedomenwn
@@ -198,9 +205,15 @@ class Program:
                     total_loss = recon_loss + beta * kld_loss
                     loss = total_loss.item()
 
-                    
                     epoch_val_loss += loss
+                    
+                    # --- ΕΚΤΥΠΩΣΗ ΠΡΟΟΔΟΥ ---
+                    progress = 100 * (i + 1) / len(val_batches)
+                    print(f"Validation Progress: {progress:.1f}%", end="\r")
+                    
                     yield
+            print(" " * 50, end="\r") # Καθαρίζει τη γραμμή
+            
             #vres validation loss
             avg_val_loss = epoch_val_loss / len(val_batches)
             val_losses_history.append(avg_val_loss)
@@ -211,15 +224,17 @@ class Program:
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 print(">>> New best validation loss! <<<")
-                
-            self.LossHistory.Print()
 
             #kalese sunarthsh gia na kaneis plot ta loss
             self.PlotTrainVal(train_losses_history, val_losses_history, epoch)
+            
         #auta einai gia to plot
         plt.ioff() 
-        plt.savefig("loss_history_NORM.png", dpi=300, bbox_inches='tight') 
+        plt.savefig("loss_history_VAE.png", dpi=300, bbox_inches='tight') 
         plt.show() 
+
+        #na apothikeusei to montelo afou exei ekpaideutei gia na to xrhsimopoihsw sto ervthma 4
+        torch.save(self.Network.state_dict(), "vae_weights.pth") 
 
     def PlotTrainVal(self, train_losses, val_losses, epoch):
         #gia na kanei plot tis grafikes
@@ -319,4 +334,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
