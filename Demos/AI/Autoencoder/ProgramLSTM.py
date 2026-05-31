@@ -233,7 +233,7 @@ class Program:
 
 
 def main():
-    AI4Animation(Program(), mode=AI4Animation.Mode.HEADLESS)
+    AI4Animation(Program(), mode=AI4Animation.Mode.STANDALONE)
 
 
 if __name__ == "__main__":

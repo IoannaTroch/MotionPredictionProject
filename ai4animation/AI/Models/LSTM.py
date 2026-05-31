@@ -11,6 +11,10 @@ class LSTMBlock(nn.Module):
         self.StepOutputDim = output_dim // future_steps
         
         self.InputProjection = nn.Linear(input_dim, hidden_dim)
+        # self.InputProjection = nn.Sequential(
+        #     nn.Linear(input_dim, hidden_dim),
+        #     nn.Tanh()
+        # )
         
         self.StepEmbedding = nn.Parameter(torch.randn(1, future_steps, hidden_dim) * 0.01)
         
@@ -23,6 +27,8 @@ class LSTMBlock(nn.Module):
         
         self.LinearOutput = nn.Linear(hidden_dim, self.StepOutputDim)
         
+        # nn.init.zeros_(self.LinearOutput.weight)
+        # nn.init.zeros_(self.LinearOutput.bias)
                
     def forward(self, x):
         batch_size = x.shape[0]
@@ -34,6 +40,17 @@ class LSTMBlock(nn.Module):
         lstm_out, _ = self.lstm(x_seq)
         
         out = self.LinearOutput(lstm_out)
+
+###
+        # B = (self.StepOutputDim - 4) // 9
+        
+        # root_pos = out[:, :, 0:2].reshape(batch_size, -1)           
+        # root_fwd = out[:, :, 2:4].reshape(batch_size, -1)           
+        # m_pos    = out[:, :, 4 : 4 + B*3].reshape(batch_size, -1)   
+        # m_rot_z  = out[:, :, 4 + B*3 : 4 + B*6].reshape(batch_size, -1)
+        # m_rot_y  = out[:, :, 4 + B*6 : 4 + B*9].reshape(batch_size, -1)
+        
+        # return torch.cat([root_pos, root_fwd, m_pos, m_rot_z, m_rot_y], dim=1)
         
         return out.reshape(batch_size, -1)
 

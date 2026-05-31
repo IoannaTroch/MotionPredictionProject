@@ -5,6 +5,7 @@ from ai4animation.Math import Tensor
 
 class TimeSeries:
     def __init__(self, start: float, end: float, samples: int):
+        """creates normalized samples uniformly inside [start, end]"""
         self.Start = start
         self.End = end
         self.Samples = [

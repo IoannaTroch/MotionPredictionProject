@@ -1,4 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
+# MLP model for autoregresive model 
 import torch
 import torch.nn as nn
 from ai4animation.AI import Losses, Modules, Stats

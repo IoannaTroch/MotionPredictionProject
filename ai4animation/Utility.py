@@ -26,6 +26,7 @@ def Opacity(color, value):
 
 
 def Normalize(value, valueMin, valueMax, resultMin, resultMax):
+    """normalizes value based on the min and max values given"""
     if valueMax - valueMin != 0.0:
         return (value - valueMin) / (valueMax - valueMin) * (
             resultMax - resultMin
@@ -42,6 +43,8 @@ def Ratio(current, start, end):
 
 
 def Clamp(value, min, max):
+    """if value < min returns min
+    else if value > max returns max"""
     if value < min:
         return min
     if value > max:

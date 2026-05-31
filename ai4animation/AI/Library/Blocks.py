@@ -16,6 +16,7 @@ from torch.nn.parameter import Parameter
 
 
 class LinearBlock(torch.nn.Module):
+    """NN with 3 linear layers"""
     def __init__(
         self,
         input_size,

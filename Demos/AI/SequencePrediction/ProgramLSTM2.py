@@ -1,5 +1,7 @@
-# program for LSTM.py
+# program for model LSTM.py
 # takes multiple frames as input and predicts the next few motions
+
+# DEN DOULEUEI SWSTA SE STANDALONE MODE
 import os
 import sys
 from pathlib import Path

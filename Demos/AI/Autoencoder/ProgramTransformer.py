@@ -94,16 +94,16 @@ class Program:
             )
         )
 
-        self.Optimizer = CosineAnnealingOptimizer(#o optimizer pou exw pou allazei to lr me vash ena sunimitono (kalo gt kanw talantwseis
+        self.Optimizer = Utility.CosineAnnealingOptimizer(#o optimizer pou exw pou allazei to lr me vash ena sunimitono (kalo gt kanw talantwseis
             #glitwnw provlhmata megalou kai mikroy lr)
             self.Network.parameters(),
             self.DataSampler.BatchSize,
-            self.DataSampler.BatchCount,
+            self.DataSampler.SampleCount,
         )
 
         self.LossHistory = Plotting.LossHistory(#plot to loss history
             "Loss History",
-            horizon=self.DataSampler.BatchCount,
+            # horizon=self.DataSampler.SampleCount,
             drawInterval=DRAW_INTERVAL,
             yScale="log",
         )
