@@ -231,10 +231,12 @@ class Program:
         #auta einai gia to plot
         plt.ioff() 
         plt.savefig("loss_history_VAE.png", dpi=300, bbox_inches='tight') 
+        #na apothikeusei to montelo afou exei ekpaideutei gia na to xrhsimopoihsw sto ervthma 4
+        torch.save(self.Network, "vae_full_model.pth")
+        print("The model was saved successfully!")
         plt.show() 
 
-        #na apothikeusei to montelo afou exei ekpaideutei gia na to xrhsimopoihsw sto ervthma 4
-        torch.save(self.Network.state_dict(), "vae_weights.pth") 
+
 
     def PlotTrainVal(self, train_losses, val_losses, epoch):
         #gia na kanei plot tis grafikes
