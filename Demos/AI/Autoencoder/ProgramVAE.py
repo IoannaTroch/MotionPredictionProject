@@ -162,8 +162,8 @@ class Program:
                 #prothetw loss
                 epoch_train_loss += tensor_loss.item()
                 
-                #progress = 100 * (i + 1) / len(train_batches)
-                #print(f"Training Progress: {progress:.1f}%", end="\r")
+                progress = 100 * (i + 1) / len(train_batches)
+                print(f"Training Progress: {progress:.1f}%", end="\r")
                 
                 yield
             print(" " * 50, end="\r")
@@ -207,12 +207,11 @@ class Program:
 
                     epoch_val_loss += loss
                     
-                    # --- ΕΚΤΥΠΩΣΗ ΠΡΟΟΔΟΥ ---
                     progress = 100 * (i + 1) / len(val_batches)
                     print(f"Validation Progress: {progress:.1f}%", end="\r")
                     
                     yield
-            print(" " * 50, end="\r") # Καθαρίζει τη γραμμή
+            print(" " * 50, end="\r") 
             
             #vres validation loss
             avg_val_loss = epoch_val_loss / len(val_batches)
@@ -235,8 +234,7 @@ class Program:
         torch.save(self.Network, "vae_full_model.pth")
         print("The model was saved successfully!")
         plt.show() 
-
-
+        
 
     def PlotTrainVal(self, train_losses, val_losses, epoch):
         #gia na kanei plot tis grafikes

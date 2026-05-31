@@ -176,8 +176,8 @@ class Program:
                 self.Optimizer.Update(batch.shape[0], tensor_loss) 
                 epoch_train_loss += tensor_loss.item()
                 #print mpares
-                #progress = 100 * (i + 1) / len(train_batches)
-                #print(f"Training Progress: {progress:.1f}%", end="\r")
+                progress = 100 * (i + 1) / len(train_batches)
+                print(f"Training Progress: {progress:.1f}%", end="\r")
                 
                 yield
             print(" " * 50, end="\r")
@@ -204,7 +204,10 @@ class Program:
 
                     
                     epoch_val_loss += loss
+                    progress = 100 * (i + 1) / len(val_batches)
+                    print(f"Validation Progress: {progress:.1f}%", end="\r")
                     yield
+            print(" " * 50, end="\r")
             #vres validation loss
             avg_val_loss = epoch_val_loss / len(val_batches)
             val_losses_history.append(avg_val_loss)
@@ -227,6 +230,7 @@ class Program:
         torch.save(self.Network, "layernorm_full_model.pth")
         print("The model was saved successfully!")
         plt.show() 
+
 
     def PlotTrainVal(self, train_losses, val_losses, epoch):
         #gia na kanei plot tis grafikes
