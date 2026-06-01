@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 from ai4animation import (
@@ -33,7 +34,7 @@ ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/Cranberry")
 sys.path.append(ASSETS_PATH)
 import Definitions
 
-EPOCH_COUNT = 150 
+EPOCH_COUNT = 150 # set to 0 if you want to load the model and skip training
 BATCH_SIZE = 32 # animation snapshots processed simultaneously
 FRAMERATE = 30 # frames per second
 DRAW_INTERVAL = 500 # how often to display plots
@@ -83,12 +84,17 @@ class Program:
                 num_layers=2
             )
         )
-
-        self.Optimizer = Utility.CosineAnnealingOptimizer(
-            self.Network.parameters(),
-            self.DataSampler.BatchSize,
-            self.DataSampler.SampleCount,
-        )
+        
+        # loading model if saved
+        save_path = os.path.join(ASSETS_PATH, "Autoregressive_LSTM_Model.pth")
+        if os.path.exists(save_path) and EPOCH_COUNT == 0:
+            print(f"--> Found trained model! Loading FULL MODEL from: {save_path}")
+            self.Network = torch.load(save_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), weights_only=False)
+        # self.Optimizer = Utility.CosineAnnealingOptimizer(
+        #     self.Network.parameters(),
+        #     self.DataSampler.BatchSize,
+        #     self.DataSampler.SampleCount,
+        # )
 
         self.LossHistory = Plotting.LossHistory(
             "Loss History", drawInterval=DRAW_INTERVAL, yScale="log"
@@ -124,19 +130,140 @@ class Program:
             pass
 
     def Training(self): 
+        if EPOCH_COUNT==0: # used when loading a trained model
+            print("\n*** INFERENCE MODE: Skipping training and opening Viewer! ***\n")
+            return
+        
+        print("Splitting dataset into Training (80%) and Validation (20%)...")
+        all_batches = list(self.DataSampler.SampleBatchesWithinMotions(1, EPOCH_COUNT))
+        
+        total_batches = len(all_batches)
+        split_idx = int(0.8 * total_batches) 
+        
+        train_batches = all_batches[:split_idx]
+        val_batches = all_batches[split_idx:]
+        
+        # upologizw sunoliko athroisma twn deigmatwn se ola ta training batches
+        total_train_samples = sum([batch_data[1].shape[0] for batch_data in train_batches])
+        
+        self.Optimizer = Utility.CosineAnnealingOptimizer(
+            self.Network.parameters(),
+            self.DataSampler.BatchSize,
+            total_train_samples
+        )
+        
+        print(f"Total batches: {total_batches} | Train: {len(train_batches)} | Val: {len(val_batches)}")
+
+        train_losses_history = []
+        val_losses_history = []
+        best_val_loss = float('inf')
+        
         for epoch in range(1, EPOCH_COUNT + 1):
-            print("Epoch", epoch)
-            for batch_data in self.DataSampler.SampleBatchesWithinMotions(
-                epoch, EPOCH_COUNT
-            ):
+            print(f"\n--- Epoch {epoch}/{EPOCH_COUNT} ---")
+            
+            # training
+            self.Network.train()
+            epoch_train_loss = 0.0
+            
+            for i, batch_data in enumerate(train_batches):
                 xBatch = batch_data[0]
                 yBatch = batch_data[1]
-                _, loss = self.Network.learn(xBatch, yBatch, epoch == 1) # forward and backward pass
-                self.Optimizer.Update(yBatch.shape[0], loss["MSE Loss"])
-                for k, v in loss.items():
-                    self.LossHistory.Add((Plotting.ToNumpy(v), k))
-                yield # pauses for syncing
-            self.LossHistory.Print()
+                
+                _, loss = self.Network.learn(xBatch, yBatch, epoch == 1) 
+                
+                if isinstance(loss, dict):
+                    tensor_loss = sum(loss.values())
+                else:
+                    tensor_loss = loss
+
+                # if isinstance(loss, dict):
+                #     tensor_loss = sum(v.item() if hasattr(v, 'item') else v for v in loss.values())
+                # else:
+                #     tensor_loss = loss.item() if hasattr(loss, 'item') else loss
+                
+                self.Optimizer.Update(yBatch.shape[0], tensor_loss) 
+                epoch_train_loss += tensor_loss.item()
+                
+                progress = 100 * (i + 1) / len(train_batches)
+                print(f"Training Progress: {progress:.1f}%", end="\r")
+                yield
+            print(" " * 50, end="\r")
+                
+            avg_train_loss = epoch_train_loss / len(train_batches)
+            train_losses_history.append(avg_train_loss)
+            
+            # VALIDATIONNN
+            self.Network.eval() 
+            epoch_val_loss = 0.0
+            with torch.no_grad(): 
+                for i, batch_data in enumerate(val_batches):
+                    xBatch = batch_data[0]
+                    yBatch = batch_data[1]
+                    
+                    _, loss = self.Network.learn(xBatch, yBatch, update_statistics=False)
+
+                    if isinstance(loss, dict):
+                        tensor_loss = sum(v.item() if hasattr(v, 'item') else v for v in loss.values())
+                    else:
+                        tensor_loss = loss.item() if hasattr(loss, 'item') else loss
+                    
+                    epoch_val_loss += tensor_loss
+                    
+                    progress = 100 * (i + 1) / len(val_batches)
+                    print(f"Validation Progress: {progress:.1f}%", end="\r")
+                    yield
+            print(" " * 50, end="\r")
+            
+            avg_val_loss = epoch_val_loss / len(val_batches)
+            val_losses_history.append(avg_val_loss)
+            
+            print(f"Train Loss: {avg_train_loss:.5f} | Val Loss: {avg_val_loss:.5f}")
+            
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                print(">>> New best validation loss! <<<")
+                
+            self.PlotTrainVal(train_losses_history, val_losses_history, epoch)
+            
+        plt.ioff() 
+        plt.savefig("loss_history_LSTM.png", dpi=300, bbox_inches='tight') 
+        
+        # saves the model 
+        save_path = os.path.join(ASSETS_PATH, "Autoregressive_LSTM_Model.pth")
+        torch.save(self.Network, save_path)
+        print(f"The model was saved successfully to {save_path}!")
+        plt.show() 
+
+    def PlotTrainVal(self, train_losses, val_losses, epoch):
+        # functions for plotting training and validation loss
+        plt.ion() 
+        plt.clf()
+        
+        plt.plot(range(1, len(train_losses) + 1), train_losses, label='Training Loss', color='blue', linewidth=2)
+        plt.plot(range(1, len(val_losses) + 1), val_losses, label='Validation Loss', color='orange', linewidth=2)
+        
+        plt.title(f'Autoregressive LSTM MSE Loss (Epoch {epoch}/{EPOCH_COUNT})')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss (Log Scale)')
+        plt.yscale('log') 
+        plt.legend()
+        plt.grid(True, which="both", ls="--", alpha=0.5)
+        
+        plt.pause(0.01)
+    # def Training(self): 
+    #     for epoch in range(1, EPOCH_COUNT + 1):
+    #         print("Epoch", epoch)
+    #         for batch_data in self.DataSampler.SampleBatchesWithinMotions(
+    #             epoch, EPOCH_COUNT
+    #         ):
+    #             xBatch = batch_data[0]
+    #             yBatch = batch_data[1]
+    #             _, loss = self.Network.learn(xBatch, yBatch, epoch == 1) # forward and backward pass
+    #             self.Optimizer.Update(yBatch.shape[0], loss["MSE Loss"])
+    #             for k, v in loss.items():
+    #                 self.LossHistory.Add((Plotting.ToNumpy(v), k))
+    #             yield # pauses for syncing
+    #         self.LossHistory.Print()
 
     # generates tensor with frame features
     # same as part of GetTrainingFeatures() in Demos/Autoencoder/Program.py
