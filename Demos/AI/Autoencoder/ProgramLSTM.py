@@ -30,6 +30,7 @@ from ai4animation.AI.Models import AutoregressionMLP
 
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/Cranberry")
+MODEL_PATH = str(SCRIPT_DIR.parent.parent.parent)
 
 sys.path.append(ASSETS_PATH)
 import Definitions
@@ -86,7 +87,7 @@ class Program:
         )
         
         # loading model if saved
-        save_path = os.path.join(ASSETS_PATH, "Autoregressive_LSTM_Model.pth")
+        save_path = os.path.join(MODEL_PATH, "Autoregressive_LSTM_Model.pth")
         if os.path.exists(save_path) and EPOCH_COUNT == 0:
             print(f"--> Found trained model! Loading FULL MODEL from: {save_path}")
             self.Network = torch.load(save_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), weights_only=False)
