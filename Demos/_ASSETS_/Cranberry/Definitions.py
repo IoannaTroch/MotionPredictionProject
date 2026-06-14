@@ -1,4 +1,5 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
+# bone definitions for Cranberry dataset
 RootName = "body_world"
 HipName = "b_root"
 NeckName = "b_neck0"
