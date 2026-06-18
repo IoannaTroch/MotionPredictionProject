@@ -29,8 +29,9 @@ from ai4animation import (
 from ai4animation.AI.Models import AutoregressionMLP
 
 SCRIPT_DIR = Path(__file__).parent
-ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/Geno")
+ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/100style")
 MODEL_PATH = str(SCRIPT_DIR.parent.parent.parent)
+MODEL = "Genoo.glb"
 
 sys.path.append(ASSETS_PATH)
 import Definitions
@@ -58,8 +59,8 @@ class Program:
                     Definitions.HipName,
                     Definitions.LeftHipName,
                     Definitions.RightHipName,
-                    Definitions.LeftScapName,      # <--- Now grabs "LeftShoulder" (Collarbone)
-                    Definitions.RightScapName,     # <--- Now grabs "RightShoulder" (Collarbone)
+                    Definitions.LeftScapName,      
+                    Definitions.RightScapName,    
                     Definitions.NeckName,
                 ),
                 lambda x: MotionModule(x), # tracks joint rotations 
@@ -115,11 +116,11 @@ class Program:
         self.Editor = entity.AddComponent(
             MotionEditor,
             self.Dataset,
-            os.path.join(ASSETS_PATH, "Model.glb"),
+            os.path.join(ASSETS_PATH, MODEL),
             BONES,
         )
         self.Actor = AI4Animation.Scene.AddEntity("Actor").AddComponent(
-            Actor, os.path.join(ASSETS_PATH, "Model.glb"), BONES
+            Actor, os.path.join(ASSETS_PATH, MODEL), BONES
         )
         self.Actor.SkinnedMesh.SetColor(AI4Animation.Color.RED)
         AI4Animation.Standalone.Camera.SetTarget(self.Actor.Entity)
