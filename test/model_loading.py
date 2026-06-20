@@ -1,4 +1,5 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
+# template for loading models 
+# works with LSTM models
 import os
 import sys
 from pathlib import Path
@@ -77,10 +78,9 @@ class Program:
             )
         )
 
-        load_path = os.path.join(ASSETS_PATH, "Trained_LSTM_Model.pth")
+        load_path = os.path.join(ASSETS_PATH, "Autoregressive_LSTM_Model.pth")
         if os.path.exists(load_path):
             print(f"--> Found trained model! Loading weights from: {load_path}")
-            # Map location forces it to load to your current device (CPU/GPU) safely
             self.Network.load_state_dict(torch.load(load_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu')))
         else:
             print("--> No existing model found. Starting fresh training!")

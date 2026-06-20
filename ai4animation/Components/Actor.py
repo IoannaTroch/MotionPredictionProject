@@ -236,11 +236,21 @@ class Actor(Component):
     def GetRootDirection(self):
         return Transform.GetAxisZ(self.Root)
 
+    # def SyncToScene(self, bones=None, root=True):
+    #     if root:
+    #         self.Entity.SetTransform(self.Root)
+    #     for bone in self.GetBones(bones):
+    #         bone.Entity.SetTransform(bone.GetTransform())
+
     def SyncToScene(self, bones=None, root=True):
         if root:
             self.Entity.SetTransform(self.Root)
-        for bone in self.GetBones(bones):
-            bone.Entity.SetTransform(bone.GetTransform())
+        for bone in self.Bones:
+            try:
+                bone.Entity.SetTransform(bone.GetTransform())
+            except Exception as e:
+                print(f"Problem with bone '{bone.Name}': {e}")
+                pass
 
         # bones = self.GetBones(bones)
         # entites = ([self.Entity] + [bone.Entity for bone in bones]) if root else [bone.Entity for bone in bones]
