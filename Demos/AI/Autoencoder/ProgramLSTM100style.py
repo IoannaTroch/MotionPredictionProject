@@ -36,7 +36,7 @@ MODEL = "100style_character.glb" # "Model.glb"
 sys.path.append(ASSETS_PATH)
 import Definitions
 
-EPOCH_COUNT = 150 # set to 0 if you want to load the model and skip training
+EPOCH_COUNT = 0 # set to 0 if you want to load the model and skip training
 BATCH_SIZE = 32 # animation snapshots processed simultaneously
 FRAMERATE = 30 # frames per second
 DRAW_INTERVAL = 500 # how often to display plots

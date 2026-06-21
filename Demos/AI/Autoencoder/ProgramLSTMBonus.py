@@ -28,8 +28,9 @@ from ai4animation import (
 )
 
 SCRIPT_DIR = Path(__file__).parent
-ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/Cranberry")
+ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/100style")
 MODEL_PATH = str(SCRIPT_DIR.parent.parent.parent)
+MODEL_NAME = "100style_character.glb" # "Model.glb"
 
 sys.path.append(ASSETS_PATH)
 import Definitions
@@ -117,11 +118,11 @@ class Program:
         self.Editor = entity.AddComponent(
             MotionEditor,
             self.Dataset,
-            os.path.join(ASSETS_PATH, "Model.glb"),
+            os.path.join(ASSETS_PATH, "MODEL_NAME"),
             BONES,
         )
         self.Actor = AI4Animation.Scene.AddEntity("Actor").AddComponent(
-            Actor, os.path.join(ASSETS_PATH, "Model.glb"), BONES
+            Actor, os.path.join(ASSETS_PATH, "MODEL_NAME"), BONES
         )
         self.Actor.SkinnedMesh.SetColor(AI4Animation.Color.RED)
         AI4Animation.Standalone.Camera.SetTarget(self.Actor.Entity)
