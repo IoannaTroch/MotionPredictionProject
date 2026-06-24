@@ -151,6 +151,9 @@ class CosineAnnealingOptimizer:
     def Update(self, count, loss):
         self.Optimizer.zero_grad()
         loss.backward()
+
+        import torch
+        torch.nn.utils.clip_grad_norm_(self.Optimizer.param_groups[0]['params'], max_norm=1.0)
         self.Optimizer.step()
         self.Scheduler.batch_step()
         self.Step += count
