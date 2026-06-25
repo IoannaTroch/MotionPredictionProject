@@ -1,0 +1,9 @@
+Media/
+test/
+*.md
+.git
+.gitignore
+__pycache__/
+*.pyc
+.vscode/
+.idea/
