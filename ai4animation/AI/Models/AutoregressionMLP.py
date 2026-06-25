@@ -1,4 +1,4 @@
-# MLP model for autoregresive model 
+# MLP model for autoregresive implementation
 import torch
 import torch.nn as nn
 from ai4animation.AI import Losses, Modules, Stats
@@ -34,12 +34,11 @@ class Model(nn.Module):
         current_history = history.clone()
 
         for _ in range(generate_steps):
-            # flattens the sliding window: [Batch, WindowSize, FrameDim] -> [Batch, InputDim]
             x = current_history.reshape(batch_size, self.InputDim)
             
             x = self.InputStats.Normalize(x)
             z = self.Layers(x)
-            next_frame = self.OutputStats.Denormalize(z) # shape: [Batch, FrameDim]
+            next_frame = self.OutputStats.Denormalize(z) 
             
             generated_frames.append(next_frame)
 
