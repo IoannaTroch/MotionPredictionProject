@@ -232,6 +232,8 @@ class Program:
 
         plt.ioff() 
         plt.savefig("loss_history_LayerNormLSTM.png", dpi=300, bbox_inches='tight') 
+        torch.save(self.Network, "latent_lstm_layernorm_full_model.pth")
+        print("The model was saved successfully!")
         plt.show() 
 
     def PlotTrainVal(self, train_losses, val_losses, epoch):
@@ -323,54 +325,9 @@ class Program:
             self.Actor.SyncToScene()
             
         self.Network.train()
-    # #closed loop
-    # def Draw(self):
-    #     with torch.no_grad():
-    #         current_frame_raw = self.GetEditorFeatures().unsqueeze(0) 
-    #         current_latent = self.EncodeBatch(current_frame_raw, 1).unsqueeze(1) 
-
-    #         history_flat = self.EditorHistory.reshape(1, WINDOW_SIZE * LATENT_DIM)
-    #         predicted_latent = self.Network(history_flat)
-            
-    #         # --- Ο ΣΩΣΤΟΣ ΜΗΧΑΝΙΣΜΟΣ CLOSED-LOOP (Με Warm-up) ---
-    #         # Φτιάχνουμε έναν μετρητή αν δεν υπάρχει
-    #         if not hasattr(self, 'FrameCount'):
-    #             self.FrameCount = 0
-    #         self.FrameCount += 1
-            
-    #         if self.FrameCount < 30:
-    #             # WARM-UP (Τα πρώτα 30 καρέ): Βάζουμε τα αληθινά δεδομένα για να πάρει φόρα (Open-Loop)
-    #             self.EditorHistory = torch.cat([self.EditorHistory[:, 1:, :], current_latent], dim=1) 
-    #         else:
-    #             # CLOSED-LOOP (Από το 31ο καρέ και μετά): Του κόβουμε τη βοήθεια. 
-    #             # Τώρα τρέφεται αποκλειστικά από τη δική του φαντασία!
-    #             self.EditorHistory = torch.cat([self.EditorHistory[:, 1:, :], predicted_latent.unsqueeze(1)], dim=1) 
-    #         # ----------------------------------------------------
-            
-    #         # Αποκωδικοποίηση
-    #         if hasattr(self, 'VAE'): # Αν είσαι στο αρχείο του VAE
-    #             predicted_raw_norm = self.VAE.Decoder(predicted_latent)
-    #             predicted_raw = self.VAE.Statistics.Denormalize(predicted_raw_norm)
-    #         else: # Αν είσαι στο αρχείο του LayerNorm
-    #             predicted_raw_norm = self.Autoencoder.Decoder(predicted_latent)
-    #             predicted_raw = self.Autoencoder.Statistics.Denormalize(predicted_raw_norm)
-            
-    #         yPred = Tensor.ToNumPy(predicted_raw)
-    #         output = ReadTensor("Y", yPred)
-        
-    #         self.Actor.Root = self.Editor.Actor.Root 
-    #         self.Actor.SetPositions(Vector3.PositionFrom(output.ReadVector3(len(BONES)), self.Actor.Root))
-    #         self.Actor.SetRotations(Rotation.RotationFrom(output.ReadRotation3D(len(BONES)), self.Actor.Root))
-    #         self.Actor.SetVelocities(Vector3.DirectionFrom(output.ReadVector3(len(BONES)), self.Actor.Root))
-    #         for bone in self.Actor.Bones:
-    #             bone.RestoreLength()
-    #         self.Actor.RestoreBoneAlignments()
-    #         self.Actor.SyncToScene()
-            
-    #     self.Network.train()
 
 def main():
-    AI4Animation(Program(), mode=AI4Animation.Mode.STANDALONE)
+    AI4Animation(Program(), mode=AI4Animation.Mode.HEADLESS)
 
 if __name__ == "__main__":
     main()
