@@ -12,7 +12,7 @@ from ai4animation import (
     ReadTensor, RootModule, Rotation, Tensor, Transform, Utility, Vector3
 )
 
-# Κάνουμε import τον VAE Autoencoder
+
 from ai4animation.AI.Models.AutoencoderVAE import VAEAutoencoder
 
 SCRIPT_DIR = Path(__file__).parent
@@ -30,10 +30,10 @@ LATENT_DIM = 256
 HIDDEN_DIM = 512
 WINDOW_SIZE = 5
 
-# ---- BONUS: Αριθμός από διαφορετικά στυλ ελέγχου ----
+
 NUM_STYLES = 5 # [0: Stand, 1: Walk Fwd, 2: Walk Bwd, 3: Crouch, 4: VR]
 
-CONDITION_MULTIPLIER = 10 # <--- ΝΕΟ: Ενισχύει το σήμα των κουμπιών
+CONDITION_MULTIPLIER = 10 # Ενισχύει το σήμα των κουμπιών
 
 class Program:
     def Start(self):
@@ -55,9 +55,6 @@ class Program:
             function=self.GetTrainingFeatures,
         )
 
-        # ---------------------------------------------------------
-        # 1. ΦΟΡΤΩΣΗ ΤΟΥ VAE (Ο Μεταφραστής μας)
-        # ---------------------------------------------------------
         print("Loading pre-trained VAE...")
         if os.path.exists("vae_full_model.pth"):
             self.VAE = torch.load("vae_full_model.pth", weights_only=False)
@@ -71,9 +68,6 @@ class Program:
         for param in self.VAE.parameters():
             param.requires_grad = False
 
-        # ---------------------------------------------------------
-        # 2. ΑΡΧΙΚΟΠΟΙΗΣΗ ΤΟΥ CONDITIONAL LSTM
-        # ---------------------------------------------------------
         # self.Network = Tensor.ToDevice(
         #     LongShortTermMemory.Model(
         #         # Η είσοδος γίνεται 1283 (1280 Ιστορικό + 3 Condition)
@@ -87,7 +81,6 @@ class Program:
 
         self.Network = Tensor.ToDevice(
             LongShortTermMemory.Model(
-                # Μεγαλώνουμε την είσοδο για να χωρέσει το ενισχυμένο σήμα
                 input_dim=(WINDOW_SIZE * LATENT_DIM) + (NUM_STYLES * CONDITION_MULTIPLIER), 
                 output_dim=LATENT_DIM,
                 hidden_dim=HIDDEN_DIM,
@@ -121,7 +114,6 @@ class Program:
         batch_size = raw_data.shape[0]
         raw_reshaped = raw_data.view(-1, FRAME_DIM)
         
-        # Αποφυγή του Warning
         raw_tensor = Tensor.ToDevice(raw_reshaped.clone().detach().float())
         
         norm_raw = self.VAE.Statistics.Normalize(raw_tensor)
@@ -161,31 +153,17 @@ class Program:
             for i, batch_data in enumerate(train_batches):
                 xBatch_raw = batch_data[0]
                 yBatch_raw = batch_data[1]
-                condition = batch_data[2] # Παίρνουμε την ετικέτα του Στυλ
-                
-                # with torch.no_grad():
-                #     xBatch_latent = self.EncodeBatch(xBatch_raw, WINDOW_SIZE)
-                #     yBatch_latent = self.EncodeBatch(yBatch_raw, 1)
-
-                # # Κολλάμε τον διακόπτη (Condition) στο Ιστορικό
-                # xBatch_conditional = torch.cat([xBatch_latent, condition], dim=1)
-
-                # _, loss = self.Network.learn(xBatch_conditional, yBatch_latent, epoch == 1)
+                condition = batch_data[2] 
 
                 with torch.no_grad():
                     xBatch_latent = self.EncodeBatch(xBatch_raw, WINDOW_SIZE)
                     yBatch_latent = self.EncodeBatch(yBatch_raw, 1)
 
-                # === 1. HISTORY DROPOUT (Η ΛΥΣΗ ΓΙΑ ΤΗΝ ΤΕΜΠΕΛΙΑ) ===
-                # Στο 25% των περιπτώσεων του μηδενίζουμε το ιστορικό!
                 if torch.rand(1).item() < 0.25:
                     xBatch_latent = xBatch_latent * 0.0
 
-                # === 2. ΕΝΙΣΧΥΣΗ ΤΟΥ ΔΙΑΚΟΠΤΗ (CONDITION REPEAT) ===
-                # Κάνουμε τον διακόπτη 10 φορές πιο μεγάλο!
                 condition_amplified = condition.repeat(1, CONDITION_MULTIPLIER)
 
-                # Ενώνουμε το (ενδεχομένως τυφλωμένο) ιστορικό με τον τεράστιο διακόπτη
                 xBatch_conditional = torch.cat([xBatch_latent, condition_amplified], dim=1)
 
                 _, loss = self.Network.learn(xBatch_conditional, yBatch_latent, epoch == 1)
@@ -206,8 +184,6 @@ class Program:
             avg_train_loss = epoch_train_loss / len(train_batches)
             train_losses_history.append(avg_train_loss)
 
-            # ... (προηγούμενος κώδικας εκπαίδευσης) ...
-
             self.Network.eval()
             epoch_val_loss = 0.0
             with torch.no_grad():
@@ -219,10 +195,8 @@ class Program:
                     xBatch_latent = self.EncodeBatch(xBatch_raw, WINDOW_SIZE)
                     yBatch_latent = self.EncodeBatch(yBatch_raw, 1)
                     
-                    # === Η ΔΙΟΡΘΩΣΗ ΕΔΩ: Ενίσχυση και στο Validation ===
                     condition_amplified = condition.repeat(1, CONDITION_MULTIPLIER)
                     xBatch_conditional = torch.cat([xBatch_latent, condition_amplified], dim=1)
-                    # ====================================================
                     
                     input_norm = self.Network.InputStatistics.Normalize(xBatch_conditional)
                     output_norm = self.Network.OutputStatistics.Normalize(yBatch_latent)
@@ -273,13 +247,9 @@ class Program:
 
             self.PlotTrainVal(train_losses_history, val_losses_history, epoch)
 
-        # =================================================================
-        # ΟΛΟΚΛΗΡΩΣΗ ΕΚΠΑΙΔΕΥΣΗΣ ΚΑΙ ΑΠΟΘΗΚΕΥΣΗ ΜΟΝΤΕΛΟΥ (ΤΟ ΣΗΜΑΝΤΙΚΟ)
-        # =================================================================
         plt.ioff()
         plt.savefig("loss_history_ConditionalLSTM.png", dpi=300, bbox_inches='tight')
         
-        # Σώζουμε ΟΛΟΚΛΗΡΟ το μοντέλο ώστε να διατηρηθούν τα Statistics
         #save_path = os.path.join(SCRIPT_DIR, "conditional_lstm_full.pth")
         torch.save(self.Network, "conditional_lstm_full.pth")
         print("The model was saved successfully!")
@@ -333,11 +303,9 @@ class Program:
         x_history_windows = history_frames_flat.reshape(len(timestamps), WINDOW_SIZE, FRAME_DIM)
         x_history_flattened = x_history_windows.reshape(len(timestamps), WINDOW_SIZE * FRAME_DIM)
 
-        # BONUS: Εξαγωγή του Στυλ από το ακριβές όνομα του αρχείου
-        style_label = 0 # Default: Standing
+        style_label = 0 
         name = motion.Name.lower()
         
-        # Πλέον ψάχνουμε το ακριβές κομμάτι του ονόματος του αρχείου σου!
         if "standing" in name:
             style_label = 0
         elif "walking_forward" in name:
@@ -351,7 +319,6 @@ class Program:
         else:
             style_label = 0 
 
-        # Δημιουργία του One-Hot Vector (με 5 θέσεις)
         condition = torch.zeros(len(timestamps), NUM_STYLES)
         condition[:, style_label] = 1.0
         condition = Tensor.ToDevice(condition)
@@ -372,7 +339,6 @@ class Program:
     def Draw(self):
         import pyray as rl
         
-        # Real-Time User Control (Πάτα 1, 2, ή 3)
         if rl.is_key_pressed(rl.KEY_ONE):
             self.CurrentStyle = 0
             print("\n>>> Switched Style: WALKING/STANDING <<<")
@@ -420,7 +386,6 @@ class Program:
         self.Network.train()
 
 def main():
-    # Τρέχουμε το Training σε HEADLESS mode (χωρίς γραφικά) για να τρέξει γρήγορα
     AI4Animation(Program(), mode=AI4Animation.Mode.HEADLESS)
 
 if __name__ == "__main__":
