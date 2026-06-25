@@ -19,7 +19,7 @@ ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/Cranberry")
 sys.path.append(ASSETS_PATH)
 import Definitions
 
-EPOCH_COUNT = 300 # Αυξημένες εποχές για τέλεια εκμάθηση
+EPOCH_COUNT = 300 
 BATCH_SIZE = 32
 FRAMERATE = 30
 DRAW_INTERVAL = 500
@@ -28,10 +28,9 @@ FRAME_DIM = 12 * len(BONES)
 LATENT_DIM = 256
 HIDDEN_DIM = 512
 
-# ΒΕΛΤΙΣΤΟΠΟΙΗΣΕΙΣ
-WINDOW_SIZE = 15 # 15 καρέ (μισό δευτερόλεπτο ιστορικό) για σταθερότητα
-NUM_STYLES = 5   # 5 διαφορετικές κινήσεις
-CONDITION_MULTIPLIER = 10 # Ενίσχυση του διακόπτη (Anti-drowning)
+WINDOW_SIZE = 15 
+NUM_STYLES = 5   
+CONDITION_MULTIPLIER = 10 
 
 class Program:
     def Start(self):
@@ -53,7 +52,7 @@ class Program:
             function=self.GetTrainingFeatures,
         )
 
-        # 1. ΦΟΡΤΩΣΗ VAE
+
         print("Loading pre-trained VAE...")
         if os.path.exists("vae_full_model.pth"):
             self.VAE = torch.load("vae_full_model.pth", weights_only=False)
@@ -67,10 +66,8 @@ class Program:
         for param in self.VAE.parameters():
             param.requires_grad = False
 
-        # 2. ΑΡΧΙΚΟΠΟΙΗΣΗ CONDITIONAL LSTM
         self.Network = Tensor.ToDevice(
             LongShortTermMemory.Model(
-                # Μεγαλωμένη είσοδος για το ιστορικό και τον ενισχυμένο διακόπτη
                 input_dim=(WINDOW_SIZE * LATENT_DIM) + (NUM_STYLES * CONDITION_MULTIPLIER),
                 output_dim=LATENT_DIM,
                 hidden_dim=HIDDEN_DIM,
@@ -83,7 +80,7 @@ class Program:
         self.Trainer = self.Training()
 
     def Standalone(self):
-        pass # Αφαιρέθηκε για Headless Εκπαίδευση
+        pass 
 
     def Update(self):
         try:
@@ -137,16 +134,10 @@ class Program:
                     xBatch_latent = self.EncodeBatch(xBatch_raw, WINDOW_SIZE)
                     yBatch_latent = self.EncodeBatch(yBatch_raw, 1)
 
-                # ========================================================
-                # CURRICULUM HISTORY DROPOUT
-                # ========================================================
                 current_dropout_prob = 0.30 * (epoch / EPOCH_COUNT)
                 if torch.rand(1).item() < current_dropout_prob:
                     xBatch_latent = xBatch_latent * 0.0
 
-                # ========================================================
-                # CONDITION AMPLIFICATION
-                # ========================================================
                 condition_amplified = condition.repeat(1, CONDITION_MULTIPLIER)
                 xBatch_conditional = torch.cat([xBatch_latent, condition_amplified], dim=1)
 
@@ -178,8 +169,6 @@ class Program:
                     
                     xBatch_latent = self.EncodeBatch(xBatch_raw, WINDOW_SIZE)
                     yBatch_latent = self.EncodeBatch(yBatch_raw, 1)
-                    
-                    # Ενίσχυση και στο Validation (χωρίς τύφλωση ιστορικού)
                     condition_amplified = condition.repeat(1, CONDITION_MULTIPLIER)
                     xBatch_conditional = torch.cat([xBatch_latent, condition_amplified], dim=1)
                     
@@ -262,9 +251,6 @@ class Program:
         x_history_windows = history_frames_flat.reshape(len(timestamps), WINDOW_SIZE, FRAME_DIM)
         x_history_flattened = x_history_windows.reshape(len(timestamps), WINDOW_SIZE * FRAME_DIM)
 
-        # ========================================================
-        # ΕΤΙΚΕΤΕΣ ΜΕ ΒΑΣΗ ΤΑ ΑΚΡΙΒΗ ΟΝΟΜΑΤΑ ΑΡΧΕΙΩΝ
-        # ========================================================
         style_label = 0 
         name = motion.Name.lower()
         

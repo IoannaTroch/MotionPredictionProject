@@ -1,0 +1,16 @@
+services:
+  motion-prediction:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: motion-prediction:latest
+    container_name: motion-prediction
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - MPLBACKEND=Agg
+      - PYTHONUNBUFFERED=1
+    tty: true
+    stdin_open: true
+    command: ["bash"]

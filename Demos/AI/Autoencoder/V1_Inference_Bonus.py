@@ -29,7 +29,6 @@ class Program:
     def Start(self):
         Utility.SetSeed(23456)
         
-        # Φορτώνουμε το Dataset ΜΟΝΟ για να πάρει τον 3D Σκελετό, ΟΧΙ για εκπαίδευση!
         self.Dataset = Dataset(
             os.path.join(ASSETS_PATH, "Motions"),
             [
@@ -39,24 +38,19 @@ class Program:
             ],
         )
 
-        # 1. ΦΟΡΤΩΣΗ VAE (Μεταφραστής)
         print("Loading pre-trained VAE...")
         self.VAE = torch.load("vae_full_model.pth", weights_only=False)
         self.VAE = Tensor.ToDevice(self.VAE)
-        self.VAE.eval() # <--- ΚΛΕΙΔΩΜΑ ΜΑΘΗΣΗΣ
+        self.VAE.eval() 
 
-        # 2. ΦΟΡΤΩΣΗ CONDITIONAL LSTM (Εγκέφαλος Κίνησης)
         print("Loading Conditional LSTM...")
         self.Network = torch.load("v1_conditional_lstm_full.pth", weights_only=False)
         self.Network = Tensor.ToDevice(self.Network)
-        self.Network.eval() # <--- ΚΛΕΙΔΩΜΑ ΜΑΘΗΣΗΣ
-
-        # Αρχικοποίηση Ιστορικού (Άδειο στην αρχή)
+        self.Network.eval() 
         self.EditorHistory = torch.zeros(1, WINDOW_SIZE, LATENT_DIM)
         
         self.CurrentStyle = 0
         
-        # Ο διακόπτης για να οδηγεί μόνο του το δίκτυο την κίνηση
         self.IsAutonomous = False
         
         print("\n" + "="*50)
@@ -64,7 +58,6 @@ class Program:
         print("="*50)
 
     def Standalone(self):
-        # Στήσιμο του 3D παραθύρου
         entity = AI4Animation.Scene.AddEntity("Trainer")
         self.Editor = entity.AddComponent(MotionEditor, self.Dataset, os.path.join(ASSETS_PATH, "Model.glb"), BONES)
         self.Actor = AI4Animation.Scene.AddEntity("Actor").AddComponent(Actor, os.path.join(ASSETS_PATH, "Model.glb"), BONES)
@@ -72,7 +65,6 @@ class Program:
         AI4Animation.Standalone.Camera.SetTarget(self.Actor.Entity)
 
     def Update(self):
-        # Η ΣΥΝΑΡΤΗΣΗ ΕΙΝΑΙ ΑΔΕΙΑ! Δεν τρέχει απολύτως καμία εκπαίδευση!
         pass 
 
     def EncodeBatch(self, raw_data, window_size):
@@ -98,9 +90,7 @@ class Program:
     def Draw(self):
         import pyray as rl
         
-        # -----------------------------------------------------
-        # ΔΙΑΒΑΣΜΑ ΠΛΗΚΤΡΟΛΟΓΙΟΥ
-        # -----------------------------------------------------
+
         if rl.is_key_pressed(rl.KEY_ONE):
             self.CurrentStyle = 0
             self.IsAutonomous = True
@@ -130,52 +120,31 @@ class Program:
             self.IsAutonomous = False
             print("\n>>> [ΑΚΥΡΩΣΗ] Επιστροφή στο Dataset (Πάτα PLAY στο παράθυρο) <<<")
 
-        # -----------------------------------------------------
-        # ΥΠΟΛΟΓΙΣΜΟΙ ΝΕΥΡΩΝΙΚΟΥ ΔΙΚΤΥΟΥ (ΧΩΡΙΣ ΕΚΠΑΙΔΕΥΣΗ)
-        # -----------------------------------------------------
-        with torch.no_grad(): # <--- ΤΟ ΜΥΣΤΙΚΟ: Απενεργοποιεί τη μάθηση!
+        with torch.no_grad(): 
             current_frame_raw = self.GetEditorFeatures().unsqueeze(0)
             current_latent = self.EncodeBatch(current_frame_raw, 1).unsqueeze(1)
             history_flat = self.EditorHistory.reshape(1, WINDOW_SIZE * LATENT_DIM)
 
-            # 1. Φτιάχνουμε τον Διακόπτη (Condition) ανάλογα με το πλήκτρο
             user_condition = torch.zeros(1, NUM_STYLES)
             user_condition[0, self.CurrentStyle] = 1.0
             user_condition = Tensor.ToDevice(user_condition)
 
-            # 2. Το δίκτυο προβλέπει βάσει του ιστορικού ΚΑΙ του διακόπτη
             history_conditional = torch.cat([history_flat, user_condition], dim=1)
             predicted_latent = self.Network(history_conditional)
 
-            # # 1. Φτιάχνουμε τον Διακόπτη (Condition)
-            # user_condition = torch.zeros(1, NUM_STYLES)
-            # user_condition[0, self.CurrentStyle] = 1.0
-            
-            # # Ενισχύουμε το σήμα για να ταιριάζει με τον νέο "εγκέφαλο" (10 φορές επανάληψη)
-            # CONDITION_MULTIPLIER = 10
-            # user_condition_amplified = user_condition.repeat(1, CONDITION_MULTIPLIER)
-            # user_condition_amplified = Tensor.ToDevice(user_condition_amplified)
-
-            # # 2. Το δίκτυο προβλέπει
-            # history_conditional = torch.cat([history_flat, user_condition_amplified], dim=1)
-            # predicted_latent = self.Network(history_conditional)
-
-            # 3. Ανανέωση Ιστορικού
             if self.IsAutonomous:
-                # CLOSED LOOP: Οδηγεί τον εαυτό του 100%
+             
                 self.EditorHistory = torch.cat([self.EditorHistory[:, 1:, :], predicted_latent.unsqueeze(1)], dim=1)
             else:
-                # OPEN LOOP: Μαζεύει φόρα από το Dataset
+
                 self.EditorHistory = torch.cat([self.EditorHistory[:, 1:, :], current_latent], dim=1)
 
-            # 4. Αποκωδικοποίηση από τον VAE σε κανονικές συντεταγμένες
             predicted_raw_norm = self.VAE.Decoder(predicted_latent)
             predicted_raw = self.VAE.Statistics.Denormalize(predicted_raw_norm)
 
             yPred = Tensor.ToNumPy(predicted_raw)
             output = ReadTensor("Y", yPred)
 
-            # 5. Εφαρμογή της κίνησης στον 3D Σκελετό
             self.Actor.Root = self.Editor.Actor.Root
             self.Actor.SetPositions(Vector3.PositionFrom(output.ReadVector3(len(BONES)), self.Actor.Root))
             self.Actor.SetRotations(Rotation.RotationFrom(output.ReadRotation3D(len(BONES)), self.Actor.Root))
@@ -186,7 +155,7 @@ class Program:
             self.Actor.SyncToScene()
 
 def main():
-    # STANDALONE Mode: Τρέχει ΜΟΝΟ το 3D παράθυρο, τίποτα άλλο!
+
     AI4Animation(Program(), mode=AI4Animation.Mode.STANDALONE)
 
 if __name__ == "__main__":

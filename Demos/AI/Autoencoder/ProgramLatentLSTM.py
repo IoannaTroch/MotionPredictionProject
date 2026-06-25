@@ -239,6 +239,9 @@ class Program:
 
         plt.ioff() 
         plt.savefig("loss_history_LatentLSTM.png", dpi=300, bbox_inches='tight') 
+        #kane save to montelo
+        torch.save(self.Network, "latent_lstm_with_vae_full_model.pth")
+        print("The model was saved successfully!")
         plt.show() 
 
     def PlotTrainVal(self, train_losses, val_losses, epoch):
@@ -336,7 +339,7 @@ class Program:
         self.Network.train()
 
 def main():
-    AI4Animation(Program(), mode=AI4Animation.Mode.STANDALONE)
+    AI4Animation(Program(), mode=AI4Animation.Mode.HEADLESS)
 
 if __name__ == "__main__":
     main()
