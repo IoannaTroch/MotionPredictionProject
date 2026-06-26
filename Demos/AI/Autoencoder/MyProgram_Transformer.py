@@ -1,4 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
 import os
 import sys
 from pathlib import Path
