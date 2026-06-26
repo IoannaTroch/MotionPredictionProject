@@ -1,11 +1,3 @@
-# Q5b — Flow Matching in the *latent space* of the pretrained autoencoder.
-#
-# Mirrors ProgramLatentLSTM_LayerNorm.py exactly, but replaces the deterministic
-# LSTM with a Conditional Flow Matching model. The flow learns
-#     p( z_t | z_{t-WINDOW_SIZE:t-1} )
-# where z = Encoder(frame). At inference we sample the next latent and decode
-# it back to a raw pose with the frozen Decoder.
-
 import os
 import sys
 from pathlib import Path
@@ -34,7 +26,6 @@ from ai4animation import (
     Vector3,
 )
 
-# Q2 autoencoder (must match the one whose checkpoint we load)
 from ai4animation.AI.Models.AutoencoderLayerNorm import EnchancedAutoencoder
 
 SCRIPT_DIR = Path(__file__).parent
@@ -48,14 +39,13 @@ BATCH_SIZE = 32
 FRAMERATE = 30
 DRAW_INTERVAL = 500
 BONES = Definitions.FULL_BODY_NAMES
-FRAME_DIM = 12 * len(BONES)  # 600 raw dims
-LATENT_DIM = 256             # matches your Q2 AE
+FRAME_DIM = 12 * len(BONES) 
+LATENT_DIM = 256             
 HIDDEN_DIM = 512
-WINDOW_SIZE = 5              # number of past latents conditioning the flow
+WINDOW_SIZE = 5              
 TIME_EMB_DIM = 64
-INTEGRATION_STEPS = 10       # Heun ODE steps at inference
+INTEGRATION_STEPS = 10    
 
-# Path to your pretrained autoencoder (Q2). Same as your LSTM-latent program.
 AUTOENCODER_CKPT = "layernorm_full_model.pth"
 
 
@@ -89,9 +79,6 @@ class Program:
             function=self.GetTrainingFeatures,
         )
 
-        # -----------------------------------------------------------------
-        # Load pretrained autoencoder (Q2)
-        # -----------------------------------------------------------------
         print("Loading pre-trained LayerNorm Autoencoder...")
         if os.path.exists(AUTOENCODER_CKPT):
             self.Autoencoder = torch.load(AUTOENCODER_CKPT, weights_only=False)
@@ -105,14 +92,11 @@ class Program:
             self.Autoencoder = Tensor.ToDevice(
                 EnchancedAutoencoder(feature_dim=FRAME_DIM, latent_dim=LATENT_DIM)
             )
-        # Freeze AE: we only train the flow.
+
         self.Autoencoder.eval()
         for p in self.Autoencoder.parameters():
             p.requires_grad = False
 
-        # -----------------------------------------------------------------
-        # Conditional Flow Matching in latent space
-        # -----------------------------------------------------------------
         self.Network = Tensor.ToDevice(
             FlowMatching.Model(
                 cond_dim=WINDOW_SIZE * LATENT_DIM,
@@ -122,10 +106,8 @@ class Program:
             )
         )
 
-        # Sliding-window offsets for past-frame timestamps (in seconds)
         self.HistoryOffsets = torch.arange(-WINDOW_SIZE, 0) / FRAMERATE
 
-        # Latent rolling buffer for live Draw mode
         self.EditorHistory = torch.zeros(1, WINDOW_SIZE, LATENT_DIM)
 
         self.Trainer = self.Training()
@@ -150,9 +132,6 @@ class Program:
         except StopIteration:
             pass
 
-    # ---------------------------------------------------------------------
-    # Encode a raw window of frames into a flat window of latents.
-    # ---------------------------------------------------------------------
     def EncodeBatch(self, raw_data, window_size):
         batch_size = raw_data.shape[0]
         raw_reshaped = raw_data.view(-1, FRAME_DIM)
@@ -161,9 +140,6 @@ class Program:
         latent = self.Autoencoder.Encoder(norm_raw)
         return latent.view(batch_size, window_size * LATENT_DIM)
 
-    # ---------------------------------------------------------------------
-    # Training loop (same train/val split as your LSTM-latent program)
-    # ---------------------------------------------------------------------
     def Training(self):
         print("Splitting dataset into Training (80%) and Validation (20%)...")
         all_batches = list(self.DataSampler.SampleBatchesWithinMotions(1, EPOCH_COUNT))
@@ -187,7 +163,6 @@ class Program:
         for epoch in range(1, EPOCH_COUNT + 1):
             print(f"\n--- Epoch {epoch}/{EPOCH_COUNT} ---")
 
-            # ------------------ TRAIN ------------------
             self.Network.train()
             epoch_train_loss = 0.0
             for i, batch_data in enumerate(train_batches):
@@ -211,10 +186,6 @@ class Program:
             avg_train_loss = epoch_train_loss / len(train_batches)
             train_losses_history.append(avg_train_loss)
 
-            # ------------------ VAL ------------------
-            # We report *sampled* MSE on the next latent (in normalized latent
-            # space), which is the apples-to-apples analogue of the LSTM val MSE.
-            # FM-MSE has an irreducible floor due to aleatoric uncertainty.
             self.Network.eval()
             epoch_val_mse = 0.0
             with torch.no_grad():
@@ -223,10 +194,8 @@ class Program:
                     xBatch_latent = self.EncodeBatch(xBatch_raw, WINDOW_SIZE)
                     yBatch_latent = self.EncodeBatch(yBatch_raw, 1)
 
-                    # Sample once from the conditional flow
                     sampled_latent = self.Network.sample(xBatch_latent)
 
-                    # MSE in normalized latent space (matches LSTM-latent val)
                     pred_n = self.Network.OutputStatistics.Normalize(sampled_latent)
                     targ_n = self.Network.OutputStatistics.Normalize(yBatch_latent)
                     mse = F.mse_loss(pred_n, targ_n).item()
@@ -280,9 +249,6 @@ class Program:
         plt.grid(True, which="both", ls="--", alpha=0.5)
         plt.pause(0.01)
 
-    # ---------------------------------------------------------------------
-    # Feature extraction — identical to your LSTM-latent program
-    # ---------------------------------------------------------------------
     def ExtractFrameFeatures(self, motion, timestamps, mirrored, root):
         transforms = Transform.TransformationFrom(
             motion.GetBoneTransformations(timestamps, BONES, mirrored=mirrored),
@@ -308,10 +274,9 @@ class Program:
         root = Tensor.Inverse(
             motion.GetModule(RootModule).GetTransforms(timestamps, mirrored=mirrored)
         )
-        # Current/target frame (raw)
+
         frames = self.ExtractFrameFeatures(motion, timestamps, mirrored, root)
 
-        # Past window of frames (raw), flattened
         history_timestamps = (
             timestamps.unsqueeze(-1) + self.HistoryOffsets.to(timestamps.device)
         )
@@ -342,28 +307,18 @@ class Program:
         features.Feed(velocities)
         return features.GetTensor()
 
-    # ---------------------------------------------------------------------
-    # Open-loop Draw (mirrors LSTM-latent open-loop). For closed-loop, replace
-    # current_latent with predicted_latent in the history update (see comments
-    # at the bottom of your LSTM-latent program).
-    # ---------------------------------------------------------------------
     def Draw(self):
         with torch.no_grad():
-            # 1) Encode current raw editor frame into a latent
             current_frame_raw = self.GetEditorFeatures().unsqueeze(0)
             current_latent = self.EncodeBatch(current_frame_raw, 1).unsqueeze(1)
 
-            # 2) Slide window: drop oldest, append current latent
             self.EditorHistory = torch.cat(
                 [self.EditorHistory[:, 1:, :], current_latent], dim=1
             )
             history_flat = self.EditorHistory.reshape(1, WINDOW_SIZE * LATENT_DIM)
 
-            # 3) Sample next latent from the conditional flow
-            # (Heun integration from x_0 ~ N(0, I))
             predicted_latent = self.Network(history_flat)
 
-            # 4) Decode the predicted latent back to raw pose
             predicted_raw_norm = self.Autoencoder.Decoder(predicted_latent)
             predicted_raw = self.Autoencoder.Statistics.Denormalize(predicted_raw_norm)
 
