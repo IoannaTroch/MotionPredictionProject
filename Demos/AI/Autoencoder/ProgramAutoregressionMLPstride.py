@@ -1,6 +1,3 @@
-# program for autoregressive MLP
-# predicts the next frame of motion based on past frames
-# uses a sliding window with specific stride 
 import os
 import sys
 from pathlib import Path
@@ -35,12 +32,12 @@ sys.path.append(ASSETS_PATH)
 import Definitions
 
 EPOCH_COUNT = 150 
-BATCH_SIZE = 32 # animation snapshots processed simultaneously
-FRAMERATE = 30 # frames per second
-DRAW_INTERVAL = 500 # how often to display plots
-BONES = Definitions.FULL_BODY_NAMES # array of strings representing joints
-FRAME_DIM = 12 * len(BONES) # every joint has 12 dimensions
-HIDDEN_DIM = 512 # neurons in the hidden layers
+BATCH_SIZE = 32 
+FRAMERATE = 30 
+DRAW_INTERVAL = 500 
+BONES = Definitions.FULL_BODY_NAMES 
+FRAME_DIM = 12 * len(BONES) 
+HIDDEN_DIM = 512 
 
 WINDOW_SIZE = 5 
 STRIDE = 2      # frames are spaced 2 steps apart 
@@ -52,7 +49,7 @@ class Program:
         self.Dataset = Dataset( 
             os.path.join(ASSETS_PATH, "Motions"),
             [
-                lambda x: RootModule( # creates the dataset based on motion files
+                lambda x: RootModule( 
                     x,
                     Definitions.HipName,
                     Definitions.LeftHipName,
@@ -61,22 +58,22 @@ class Program:
                     Definitions.RightShoulderName,
                     Definitions.NeckName,
                 ),
-                lambda x: MotionModule(x), # tracks joint rotations 
-                lambda x: MirrorModule( # flips values across z-axis to artificially double dataset volume
+                lambda x: MotionModule(x), 
+                lambda x: MirrorModule( 
                     x, Vector3.Axis.ZPositive, Vector3.Create(0, 0, 180)
                 ),
             ],
         )
 
-        self.DataSampler = DataSampler( # mini-batch setup
+        self.DataSampler = DataSampler( 
             self.Dataset,
             framerate=FRAMERATE,
             batch_size=BATCH_SIZE,
-            function=self.GetTrainingFeatures, # feeds data matrices through our tracking extractor
+            function=self.GetTrainingFeatures, 
         )
 
         self.Network = Tensor.ToDevice(
-            AutoregressionMLP.Model(  # sets the model with default dropout
+            AutoregressionMLP.Model(  
                 FRAME_DIM, WINDOW_SIZE, HIDDEN_DIM
             )
         )
@@ -91,18 +88,18 @@ class Program:
             "Loss History", drawInterval=DRAW_INTERVAL, yScale="log"
         )
 
-        # sliding window changes to include stride
+        
         self.HistoryOffsets = (torch.arange(-WINDOW_SIZE, 0) * STRIDE) / FRAMERATE
         
-        # sliding history window inside memory matching network shape
+        
         self.EditorHistory = torch.zeros(1, WINDOW_SIZE, FRAME_DIM)
         
-        # a larger raw frame ring buffer to handle the live runtime stride skip
+       
         self.LiveFrameBuffer = []
 
         self.Trainer = self.Training()
 
-     # generates the scene and actor for the 3d environment
+    
     def Standalone(self): 
         entity = AI4Animation.Scene.AddEntity("Trainer")
         self.Editor = entity.AddComponent(
@@ -134,8 +131,7 @@ class Program:
                 yield # pauses for syncing
             self.LossHistory.Print()
 
-    # generates tensor with frame features
-    # same as part of GetTrainingFeatures() in Demos/Autoencoder/Program.py
+
     def ExtractFrameFeatures(self, motion, timestamps, mirrored, root):
         transforms = Transform.TransformationFrom(
             motion.GetBoneTransformations(timestamps, BONES, mirrored=mirrored),
@@ -161,21 +157,21 @@ class Program:
 
         mirrored = Tensor.RandomBool() # random mirroring for data augmentation
 
-        root = Tensor.Inverse(  # calculates the inverse root transformation matrix (normalizes tracking space context)
+        root = Tensor.Inverse(  
             motion.GetModule(RootModule).GetTransforms(timestamps, mirrored=mirrored)
         )
 
-        frames = self.ExtractFrameFeatures(motion, timestamps, mirrored, root) # target frames 
+        frames = self.ExtractFrameFeatures(motion, timestamps, mirrored, root) 
 
-        # computes strided history 
+         
         history_timestamps = timestamps.unsqueeze(-1) + self.HistoryOffsets.to(timestamps.device)
         history_flat = history_timestamps.flatten()
 
         history_roots = Tensor.Inverse(motion.GetModule(RootModule).GetTransforms(history_flat, mirrored=mirrored))
-        history_frames_flat = self.ExtractFrameFeatures(motion, history_flat, mirrored, history_roots) # history frames
+        history_frames_flat = self.ExtractFrameFeatures(motion, history_flat, mirrored, history_roots) 
 
-        x_history_windows = history_frames_flat.reshape(len(timestamps), WINDOW_SIZE, FRAME_DIM) # reshapes history data 
-        x_history_flattened = x_history_windows.reshape(len(timestamps), WINDOW_SIZE * FRAME_DIM) # flattens data for the next layer
+        x_history_windows = history_frames_flat.reshape(len(timestamps), WINDOW_SIZE, FRAME_DIM)  
+        x_history_flattened = x_history_windows.reshape(len(timestamps), WINDOW_SIZE * FRAME_DIM)  
 
         return (x_history_flattened, frames)
 
@@ -208,12 +204,11 @@ class Program:
             else:
                 self.EditorHistory = torch.cat([self.EditorHistory[:, 1:, :], current_frame], dim=1)
             
-            # generates one prediction frame based on the updated history window
             yPred = Tensor.ToNumPy(self.Network(self.EditorHistory, generate_steps=1))
             output = ReadTensor("Y", yPred)
 
-            self.Actor.Root = self.Editor.Actor.Root # snaps the prediction actor's core location to match the master trajectory root
-            self.Actor.SetPositions( # changes character's bone arrays based on parsed network output features 
+            self.Actor.Root = self.Editor.Actor.Root 
+            self.Actor.SetPositions( 
                 Vector3.PositionFrom(output.ReadVector3(len(BONES)), self.Actor.Root)
             )
             self.Actor.SetRotations(
