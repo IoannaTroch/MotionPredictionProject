@@ -1,5 +1,3 @@
-# uses LSTM model to train an autoregressive LSTM with a window of a few frames
-# to predict the next frame of motion
 import os
 import sys
 from pathlib import Path
@@ -50,7 +48,7 @@ class Program:
     def Start(self):
         Utility.SetSeed(23456)
 
-        self.Dataset = Dataset( # creates the dataset based on motion files
+        self.Dataset = Dataset( 
             os.path.join(ASSETS_PATH, "Motions"),
             [
                 lambda x: RootModule(
@@ -62,14 +60,14 @@ class Program:
                     Definitions.RightShoulderName,
                     Definitions.NeckName,
                 ),
-                lambda x: MotionModule(x), # tracks joint rotations 
-                lambda x: MirrorModule( # flips values across z-axis to artificially double dataset volume
+                lambda x: MotionModule(x),  
+                lambda x: MirrorModule( 
                     x, Vector3.Axis.ZPositive, Vector3.Create(0, 0, 180)
                 ),
             ],
         )
 
-        self.DataSampler = DataSampler( # mini-batch setup
+        self.DataSampler = DataSampler( 
             self.Dataset,
             framerate=FRAMERATE,
             batch_size=BATCH_SIZE,
@@ -86,30 +84,25 @@ class Program:
             )
         )
         
-        # loading model if saved
+        
         save_path = os.path.join(MODEL_PATH, "Autoregressive_LSTM_Model.pth")
         if os.path.exists(save_path) and EPOCH_COUNT == 0:
             print(f"--> Found trained model! Loading FULL MODEL from: {save_path}")
             self.Network = torch.load(save_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), weights_only=False)
-        # self.Optimizer = Utility.CosineAnnealingOptimizer(
-        #     self.Network.parameters(),
-        #     self.DataSampler.BatchSize,
-        #     self.DataSampler.SampleCount,
-        # )
+        
 
         self.LossHistory = Plotting.LossHistory(
             "Loss History", drawInterval=DRAW_INTERVAL, yScale="log"
         )
 
-        # generates a relative history index matrix 
+        
         self.HistoryOffsets = torch.arange(-WINDOW_SIZE, 0) / FRAMERATE
 
-        # sliding history window
+       
         self.EditorHistory = torch.zeros(1, WINDOW_SIZE, FRAME_DIM)
 
         self.Trainer = self.Training()
 
-    # generates the scene and actor for the 3d environment
     def Standalone(self): 
         entity = AI4Animation.Scene.AddEntity("Trainer")
         self.Editor = entity.AddComponent(
@@ -131,7 +124,7 @@ class Program:
             pass
 
     def Training(self): 
-        if EPOCH_COUNT==0: # used when loading a trained model
+        if EPOCH_COUNT==0: 
             print("\n*** INFERENCE MODE: Skipping training and opening Viewer! ***\n")
             return
         
@@ -177,10 +170,7 @@ class Program:
                 else:
                     tensor_loss = loss
 
-                # if isinstance(loss, dict):
-                #     tensor_loss = sum(v.item() if hasattr(v, 'item') else v for v in loss.values())
-                # else:
-                #     tensor_loss = loss.item() if hasattr(loss, 'item') else loss
+                
                 
                 self.Optimizer.Update(yBatch.shape[0], tensor_loss) 
                 epoch_train_loss += tensor_loss.item()
@@ -251,23 +241,7 @@ class Program:
         plt.grid(True, which="both", ls="--", alpha=0.5)
         
         plt.pause(0.01)
-    # def Training(self): 
-    #     for epoch in range(1, EPOCH_COUNT + 1):
-    #         print("Epoch", epoch)
-    #         for batch_data in self.DataSampler.SampleBatchesWithinMotions(
-    #             epoch, EPOCH_COUNT
-    #         ):
-    #             xBatch = batch_data[0]
-    #             yBatch = batch_data[1]
-    #             _, loss = self.Network.learn(xBatch, yBatch, epoch == 1) # forward and backward pass
-    #             self.Optimizer.Update(yBatch.shape[0], loss["MSE Loss"])
-    #             for k, v in loss.items():
-    #                 self.LossHistory.Add((Plotting.ToNumpy(v), k))
-    #             yield # pauses for syncing
-    #         self.LossHistory.Print()
-
-    # generates tensor with frame features
-    # same as part of GetTrainingFeatures() in Demos/Autoencoder/Program.py
+   
     def ExtractFrameFeatures(self, motion, timestamps, mirrored, root):
         transforms = Transform.TransformationFrom(
             motion.GetBoneTransformations(timestamps, BONES, mirrored=mirrored),
@@ -341,8 +315,8 @@ class Program:
             yPred = Tensor.ToNumPy(self.Network(history_flat))
             output = ReadTensor("Y", yPred)
         
-            self.Actor.Root = self.Editor.Actor.Root # snaps the prediction actor's core location to match the master trajectory root
-            self.Actor.SetPositions( # changes character's bone arrays based on parsed network output features
+            self.Actor.Root = self.Editor.Actor.Root 
+            self.Actor.SetPositions( 
                 Vector3.PositionFrom(output.ReadVector3(len(BONES)), self.Actor.Root)
             )
             self.Actor.SetRotations(
