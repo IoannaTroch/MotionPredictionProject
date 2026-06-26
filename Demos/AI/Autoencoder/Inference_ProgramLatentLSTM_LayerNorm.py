@@ -12,8 +12,9 @@ from ai4animation import (
 from ai4animation.AI.Models.AutoencoderVAE import VAEAutoencoder
 
 SCRIPT_DIR = Path(__file__).parent
-#fortwnw to patch me to va;idation dataset
+#fortwnw to patch me to validation dataset
 ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/CranberryInf")
+MODEL_PATH = str(SCRIPT_DIR.parent.parent.parent)
 sys.path.insert(0, ASSETS_PATH) 
 import Definitions
 
@@ -25,6 +26,8 @@ BONES = Definitions.FULL_BODY_NAMES
 FRAME_DIM = 12 * len(BONES) 
 LATENT_DIM = 256        
 WINDOW_SIZE = 5 
+VAE_PATH = os.path.join(MODEL_PATH, "vae_full_model.pth")
+MODEL = os.path.join(MODEL_PATH, "latent_lstm_layernorm_full_model.pth")
 
 class Program:
     def Start(self):
@@ -41,8 +44,8 @@ class Program:
         )
 
         print("Φόρτωση pre-trained VAE...")
-        if os.path.exists("vae_full_model.pth"):
-            self.VAE = torch.load("vae_full_model.pth", weights_only=False)
+        if os.path.exists(VAE_PATH):
+            self.VAE = torch.load(VAE_PATH, weights_only=False)
             self.VAE = Tensor.ToDevice(self.VAE)
             self.VAE.eval()
             print("Το μοντέλο VAE φορτώθηκε επιτυχώς!")
@@ -52,8 +55,8 @@ class Program:
 
         #fortwsh montelou
         print("Φόρτωση pre-trained Latent LSTM...")
-        if os.path.exists("latent_lstm_layernorm_full_model.pth"):
-            self.Network = torch.load("latent_lstm_layernorm_full_model.pth", weights_only=False)
+        if os.path.exists(MODEL):
+            self.Network = torch.load(MODEL, weights_only=False)
             self.Network = Tensor.ToDevice(self.Network)
             self.Network.eval() 
             print("Το μοντέλο Latent LSTM φορτώθηκε επιτυχώς!")

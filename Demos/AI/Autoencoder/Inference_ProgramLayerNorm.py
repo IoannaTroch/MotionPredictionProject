@@ -15,13 +15,14 @@ from ai4animation import (
 from ai4animation.AI.Models.AutoencoderLayerNorm import EnchancedAutoencoder
 
 SCRIPT_DIR = Path(__file__).parent
-ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/Cranberry")
+ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/CranberryInf")
+MODEL_PATH = str(SCRIPT_DIR.parent.parent.parent)
 sys.path.insert(0, ASSETS_PATH) 
 import Definitions
 
 BONES = Definitions.FULL_BODY_NAMES
 FRAME_DIM = 12 * len(BONES)
-
+LAYER_NORM_PATH = os.path.join(MODEL_PATH, "layernorm_full_model.pth")
 class Program:
     def Start(self):
         Utility.SetSeed(23456)
@@ -37,14 +38,12 @@ class Program:
 
         print("Loading pre-trained LayerNorm Autoencoder...")
         #fortwnw to trained montelo
-        self.Network = torch.load("layernorm_full_model.pth", weights_only=False)
+        self.Network = torch.load(LAYER_NORM_PATH, weights_only=False)
         self.Network = Tensor.ToDevice(self.Network)
         self.Network.eval() # Σημαντικό: Κλείνει τα τυχόν dropouts/train modes
 
         print("\n" + "="*50)
-        print("ΤΟ LAYER NORM ΜΟΝΤΕΛΟ ΦΟΡΤΩΘΗΚΕ ΕΠΙΤΥΧΩΣ!")
-        print("Αν η εκπαίδευση πήγε καλά, ο ΚΟΚΚΙΝΟΣ χαρακτήρας")
-        print("πρέπει να ακολουθεί πιστά τον ΚΑΝΟΝΙΚΟ χαρακτήρα.")
+        print("Model successfully loaded")
         print("="*50)
 
     def Standalone(self):

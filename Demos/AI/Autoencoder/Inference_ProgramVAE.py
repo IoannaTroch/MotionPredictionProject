@@ -15,11 +15,13 @@ from ai4animation.AI.Models.AutoencoderVAE import VAEAutoencoder
 SCRIPT_DIR = Path(__file__).parent
 #fortwnw to patch me to va;idation dataset
 ASSETS_PATH = str(SCRIPT_DIR.parent.parent / "_ASSETS_/CranberryInf")
+MODEL_PATH = str(SCRIPT_DIR.parent.parent.parent)
 sys.path.insert(0, ASSETS_PATH) 
 import Definitions
 
 BONES = Definitions.FULL_BODY_NAMES
 FRAME_DIM = 12 * len(BONES)
+VAE_PATH = os.path.join(MODEL_PATH, "vae_full_model.pth")
 
 class Program:
     def Start(self):
@@ -36,7 +38,7 @@ class Program:
 
         print("Loading pre-trained VAE...")
         #fortwnw to trained montelo
-        self.VAE = torch.load("vae_full_model.pth", weights_only=False)
+        self.VAE = torch.load(VAE_PATH, weights_only=False)
         self.VAE = Tensor.ToDevice(self.VAE)
         self.VAE.eval() # Πολύ σημαντικό: Κλείνει το dropout και τρέχει σε mode αξιολόγηης
 
