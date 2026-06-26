@@ -1,5 +1,3 @@
-# similar to Demos/AI/Autoencoder/ProgramLSTM.py but uses 100style dataset motions
-# and Geno character instead of Cranberry
 import os
 import sys
 from pathlib import Path
@@ -92,11 +90,7 @@ class Program:
         if os.path.exists(save_path) and EPOCH_COUNT == 0:
             print(f"--> Found trained model! Loading FULL MODEL from: {save_path}")
             self.Network = torch.load(save_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), weights_only=False)
-        # self.Optimizer = Utility.CosineAnnealingOptimizer(
-        #     self.Network.parameters(),
-        #     self.DataSampler.BatchSize,
-        #     self.DataSampler.SampleCount,
-        # )
+       
 
         self.LossHistory = Plotting.LossHistory(
             "Loss History", drawInterval=DRAW_INTERVAL, yScale="log"
