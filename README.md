@@ -112,7 +112,7 @@ The repo includes a number of trained checkpoints (`*.pth`) exploring different 
 | **Conditional LSTM** | `conditional_lstm_full.pth`, `v1_conditional_lstm_full.pth`, `v2_conditional_lstm_full.pth` | LSTM conditioned on auxiliary signals (e.g. style/action), with iterative versions |
 | **Latent LSTM** | `latent_lstm_layernorm_full_model.pth`, `latent_lstm_with_vae_full_model.pth` | Recurrent prediction in a learned latent space rather than raw pose space |
 | **VAE** | `vae_full_model.pth`, `vae_full_model_100style.pth` | Variational autoencoder over pose/motion features |
-| **Flow Matching** | `flow_matching_raw_model.pth`, `flow_matching_latent_model.pth`, `flow_matching_latent_bonus.pth`, `flow_matching_vae.pth`, `adaln_flow_matching_full.pth` | Generative flow-matching approaches, in raw and latent space, including an AdaLN-conditioned variant |
+| **Flow Matching** | `flow_matching_raw_model.pth`, `flow_matching_latent_model.pth`, `flow_matching_latent_bonus.pth`, `flow_matching_vae.pth`, `viol_100style_bonus_flow_matching_full.pth` | Generative flow-matching approaches, in raw and latent space, including an AdaLN-conditioned variant |
 | **LayerNorm MLP** | `layernorm_full_model.pth` | Feed-forward baseline with layer normalization |
 
 Loss curves for the flow-matching models are saved as `loss_history_FlowMatchingRaw.png` and `loss_history_FlowMatchingLatent.png` in the repo root. See [`test/model_loading.py`](test/model_loading.py) and [`test/network_training.py`](test/network_training.py) for how to load and train these models using the framework's `Tensor`, `DataSampler`, and `Dataset` utilities.
