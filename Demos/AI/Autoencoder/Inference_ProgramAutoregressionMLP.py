@@ -1,6 +1,3 @@
-# program for autoregressive MLP
-# predicts the next frame of motion based on past frames
-# uses a sliding window containing a number of past frames
 import os
 import sys
 from pathlib import Path
@@ -35,21 +32,20 @@ sys.path.append(ASSETS_PATH)
 import Definitions
 
 EPOCH_COUNT = 150 
-BATCH_SIZE = 32 # animation snapshots processed simultaneously
-FRAMERATE = 30 # frames per second
-DRAW_INTERVAL = 500 # how often to display plots
-BONES = Definitions.FULL_BODY_NAMES # array of strings representing joints
-FRAME_DIM = 12 * len(BONES) # every joint has 12 dimensions
-# position 3, forward 3, upward 3, velocity 3
-HIDDEN_DIM = 512 # neurons in the hidden layers
-WINDOW_SIZE = 5 # it looks at the past 5 frames
+BATCH_SIZE = 32 
+FRAMERATE = 30 
+DRAW_INTERVAL = 500 
+BONES = Definitions.FULL_BODY_NAMES 
+FRAME_DIM = 12 * len(BONES) 
+HIDDEN_DIM = 512 
+WINDOW_SIZE = 5 
 
 
 class Program:
     def Start(self):
         Utility.SetSeed(23456)
 
-        self.Dataset = Dataset( # creates the dataset based on motion files
+        self.Dataset = Dataset( 
             os.path.join(ASSETS_PATH, "Motions"),
             [
                 lambda x: RootModule(
@@ -61,8 +57,8 @@ class Program:
                     Definitions.RightShoulderName,
                     Definitions.NeckName,
                 ),
-                lambda x: MotionModule(x), # tracks joint rotations 
-                lambda x: MirrorModule( # flips values across z-axis to artificially double dataset volume
+                lambda x: MotionModule(x),
+                lambda x: MirrorModule( 
                     x, Vector3.Axis.ZPositive, Vector3.Create(0, 0, 180)
                 ),
             ],
@@ -76,13 +72,13 @@ class Program:
         except:
             print("Model {save_path} not found")
 
-        # generates a relative history index matrix 
+        
         self.HistoryOffsets = torch.arange(-WINDOW_SIZE, 0) / FRAMERATE
 
-        # sliding history window
+        
         self.EditorHistory = torch.zeros(1, WINDOW_SIZE, FRAME_DIM)
 
-    # generates the scene and actor for the 3d environment
+    
     def Standalone(self): 
         entity = AI4Animation.Scene.AddEntity("Trainer")
         self.Editor = entity.AddComponent(
@@ -104,7 +100,7 @@ class Program:
     def GetEditorFeatures(self):
         features = FeedTensor("X", FRAME_DIM)
         root = self.Editor.Actor.Root
-        # normalise 3d editor coords to match root orientation layout logic
+        
         transforms = Transform.TransformationTo(
             self.Editor.Actor.GetTransforms(BONES), root
         )
@@ -117,17 +113,17 @@ class Program:
 
     def Draw(self):
         with torch.no_grad():
-            current_frame = self.GetEditorFeatures().unsqueeze(0).unsqueeze(1) # matches dimensions with yPred # [1, 1, FRAME_DIM]
+            current_frame = self.GetEditorFeatures().unsqueeze(0).unsqueeze(1) 
 
-            # deletes the first frame from the history window and adds current frame 
+            
             self.EditorHistory = torch.cat([self.EditorHistory[:, 1:, :], current_frame], dim=1) 
             
-            # generates one prediction frame based on the updated history window
+            
             yPred = Tensor.ToNumPy(self.Network(self.EditorHistory, generate_steps=1))
             output = ReadTensor("Y", yPred)
 
-            self.Actor.Root = self.Editor.Actor.Root # snaps the prediction actor's core location to match the master trajectory root
-            self.Actor.SetPositions( # changes character's bone arrays based on parsed network output features
+            self.Actor.Root = self.Editor.Actor.Root 
+            self.Actor.SetPositions(
                 Vector3.PositionFrom(output.ReadVector3(len(BONES)), self.Actor.Root)
             )
             self.Actor.SetRotations(
