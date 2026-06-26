@@ -1,139 +1,153 @@
 <div align="center">
 
-# AI4AnimationPy
+# MotionPredictionProject
 
-**A Python framework for AI-driven character animation using neural networks.**
-
-Developed by [Paul Starke](https://github.com/paulstarke) and [Sebastian Starke](https://github.com/sebastianstarke)
+**Experimenting with neural network architectures for future human-motion prediction, built on top of AI4AnimationPy.**
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
-[![Documentation](https://img.shields.io/badge/Docs-GitHub%20Pages-blue?logo=github)](https://facebookresearch.github.io/ai4animationpy/)
-
-<a href="https://youtu.be/LKl7MzFENUs">
-<img src="Media/Thumbnail.png" width="100%" alt="AI4AnimationPy Demo Video">
-</a>
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](Dockerfile)
 
 </div>
 
-AI4AnimationPy enables character animation through neural networks and provides useful tools for motion capture processing, training & inference, and animation engineering. The framework brings [AI4Animation](https://github.com/sebastianstarke/AI4Animation) to Python — removing the Unity dependency for data-processing, feature-extraction, inference, and post-processing while keeping similar game-engine-style architecture (ECS, update loops, rendering pipeline). Everything runs on **NumPy** or **PyTorch**, so training, inference, and visualization happen in one unified environment.
+This project explores different deep learning approaches for **predicting future human motion** from motion capture data — given a window of past poses, predict what the body will do next. It is built on top of [AI4AnimationPy](https://github.com/sebastianstarke/AI4Animation), a Python framework for AI-driven character animation by Paul Starke and Sebastian Starke, which provides the data pipeline, ECS-style runtime, math/animation utilities, and visualization tooling used throughout this repo.
 
-## Getting Started
+On top of that framework, this repo adds a series of motion-prediction model architectures, trained checkpoints, and a documented trail of experiments — including approaches that didn't work out, kept around because the dead ends were as informative as the wins.
 
-Please see the full documentation for installation instructions, and other practical tips for working with AI4AnimationPy:
+## Table of Contents
 
-[**Full Documentation**](https://facebookresearch.github.io/ai4animationpy/)
+- [Project Structure](#project-structure)
+- [Running the Project](#running-the-project)
+- [Models](#models)
+- [Failed Attempts](#failed-attempts)
+- [Demos](#demos)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
 
-- [Installation Instructions](https://facebookresearch.github.io/ai4animationpy/getting-started/installation/)
-- [Quick Start Guide](https://facebookresearch.github.io/ai4animationpy/getting-started/quickstart/)
-- [Architecture Overview](https://facebookresearch.github.io/ai4animationpy/architecture/overview/)
-- [Demo Programs](https://facebookresearch.github.io/ai4animationpy/tutorials/demos/)
-- [API Reference](https://facebookresearch.github.io/ai4animationpy/api/actor/)
+## Project Structure
 
-## Architecture
-The framework can be executed via 1) using in-built rendering pipeline ("Standalone"), 2) headless mode ("Headless") or 3) manual execution ("Manual") which enables running code locally or remotely on server-side.
-While both Standalone and Headless mode invoke automatic update callbacks, the Manual mode allows to manually control how often and at which time intervals the update loop is invoked.
+```
+MotionPredictionProject/
+├── ai4animation/         # Core framework (ECS, math, rendering, AI building blocks)
+├── Demos/                # Interactive demo scenes (Locomotion, IK, MotionEditor, ...)
+├── Failed_Attemps/       # Archived architecture experiments that did not pan out
+├── test/                 # Minimal example/template scripts
+├── Media/                # Demo gifs and diagrams (not embedded in this README)
+├── *.pth                 # Trained model checkpoints (see Models below)
+├── Dockerfile
+├── docker-compose.yml
+└── setup.py
+```
 
-<img src ="Media/Architecture.png" width="100%">
+## Running the Project
 
-## Interactive Demos
-| | |
-|---|---|
-| ![Locomotion Demo](Media/Biped_Locomotion.gif) | ![Quadruped Demo](Media/Quadruped_Locomotion.gif) |
-| **Stylized Biped Locomotion Controller** trained on style100 | **Quadruped Locomotion Controller** — Interactive dog locomotion with gait transitions and action poses |
-| ![Training Demo](Media/Training.gif) | ![ECS Demo](Media/ECS.gif) |
-| **Future Motion Anticipation** with Interactive model training visualization | **ECS** — Entity hierarchy and component system |
-| ![IK Demo](Media/IK.gif) | ![MocapImport Demo](Media/MocapImport.gif) |
-| **Inverse Kinematics** — Real-time IK solving | **Motion Capture Import** — GLB/FBX/BVH/NPZ loading |
-| ![MotionEditor Demo](Media/MotionEditor.gif) | <div align="center"><br/><a href="https://facebookresearch.github.io/ai4animationpy/tutorials/demos/"><strong>View all demos →</strong></a></div> |
-| **Motion Editor** — animation browsing and feature visualization| |
+There are two ways to run the code in this repo:
 
-<div align="center"><a href="https://paulstarke-ai4animationpy.hf.space/" style="display: inline-block; padding: 12px 24px; background-color: #0366d6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 20px;">Play Web Demos</a> <br> <br>
+### 1. Docker (training only)
 
-<a href="https://youtu.be/qifmLpNzVzI?si=DmKrpsNhBO3vsCbW">
-<img src="Media/WebDemos.png" width="75%" alt="AI4AnimationPy Demo Video">
-</a>
+The provided Docker setup is **headless** and intended for **training only** — it does not include a display/rendering stack, so the interactive demos and inference scenes (which rely on the framework's Standalone rendering mode) cannot run inside it.
 
-</div>
+1. Make sure [Docker](https://docs.docker.com/get-docker/) and Docker Compose are installed.
+2. From the repo root, build the image:
+   ```bash
+   docker compose build
+   ```
+3. Start the container and drop into a shell:
+   ```bash
+   docker compose run motion-prediction
+   ```
+4. Inside the container, the `ai4animation` package is already installed (editable mode) and the repo is mounted at `/app`. Run your training script, e.g.:
+   ```bash
+   python test/network_training.py
+   ```
 
-## Why AI4AnimationPy?
+The container is built on `python:3.12-slim` with `MPLBACKEND=Agg` set, so plots are written to disk instead of opened in a window.
 
-Research on AI-driven character animation has required juggling multiple disconnected tools — model research happens in Python while visualization requires specialized software, and bridging the two involves custom communication pipelines. This creates friction that slows iteration and makes it difficult to validate results on-the-fly.
+### 2. Conda (training + inference)
 
-The training pipeline in [AI4Animation](https://github.com/sebastianstarke/AI4Animation) has been heavily dependent on Unity. While useful for visualization and runtime inference, communication with PyTorch had to go through ONNX or data streaming, creating a disconnect in the overall workflow. AI4AnimationPy solves this by fusing everything into one unified framework running only on NumPy/PyTorch:
+For running inference, the interactive demos, or anything that needs the Standalone rendering mode, use a local conda environment instead.
 
-- **Train neural networks** on motion capture data
-- **Visualize instantly** without switching tools — training, inference, and rendering share the same backend
-- **Run headless** for server-side training with optional standalone mode
-- **Extend easily** with new features like geometry, audio, vision, or physics via the modular ECS design
+1. Create and activate a new environment:
+   ```bash
+   conda create -n motionprediction python=3.12
+   conda activate motionprediction
+   ```
+2. Install the project and its dependencies:
+   ```bash
+   pip install -e .
+   ```
+   This installs the `ai4animation` package along with PyTorch, NumPy, SciPy, scikit-learn, einops, pygltflib, etc. (see [`setup.py`](setup.py) for the full list), and exposes a `convert` CLI for batch motion-data conversion.
+3. Run any script directly, including inference and demos:
+   ```bash
+   python Demos/Locomotion/locomotion.py
+   ```
 
-<img src="Media/Workflow.png" width="100%" alt="Framework Workflow">
-
-| | AI4AnimationPy | AI4Animation (Unity) |
-|---|---|---|
-| **Training data generation** (20h mocap) | < 5 min | > 4 hours |
-| **Setup time** for new experiment | ~10 min | > 4 hours |
-| **Visualize**  inputs/outputs during training | Built-in | Requires streaming |
-| **Backprop** through inference | ✅ Supported | ❌ Not possible |
-| **Quantization** | Full PyTorch support | Limited to ONNX |
-| **Visualization** | Optional built-in renderer | Built-in |
-
-## Features
-
-| | Feature | Status |
-|---|---------|:------:|
-| 🧩 | **Entity-Component-System** — modular architecture with lifecycle management | ✅ |
-| 🔄 | **Update Loop** — game-engine-style callbacks (Update / Draw / GUI) | ✅ |
-| 📐 | **Math Library** — vectorized FK, quaternions, axis-angle, matrices, mirroring | ✅ |
-| 🧠 | **Neural Networks** — MLP, Autoencoder, Codebook Matching with training utilities | ✅ |
-| 🖥️ | **Real-time Renderer** — deferred shading, shadow mapping, SSAO, bloom, FXAA | ✅ |
-| 💀 | **Skinned Mesh Rendering** — GPU-accelerated skeletal mesh rendering | ✅ |
-| 🦴 | **Inverse Kinematics** — FABRIK solver for real-time IK | ✅ |
-| 🎬 | **Animation Modules** — joint contacts, root & joint trajectories | ✅ |
-| 🎥 | **Camera System** — Free, Fixed, Third-person, Orbit mode with smooth blending | ✅ |
-| 📦 | **Motion Import** — GLB, FBX, BVH | ✅ |
-| ⚡ | **Execution Modes** — Standalone, Headless, Manual | ✅ |
-| 🏗️ | Physics simulation (rigid bodies / collision) | 🔜 |
-| 🛤️ | Path planning and spline tooling | 🔜 |
-| 🔊 | Audio support | 🔜 |
-
-## Motion Capture Import
-
-The framework supports importing mesh, skin, and animation data from **GLB**, **FBX**, and **BVH** files. The internal motion format is `.npz`, storing 3D positions and 4D quaternions for each skeleton joint per frame.
+### Quick Start
 
 ```python
 from ai4animation import Motion
 
-motion = Motion.LoadFromGLB("character.glb")
-motion = Motion.LoadFromFBX("character.fbx")
+# Load motion capture data (GLB, FBX, or BVH)
 motion = Motion.LoadFromBVH("character.bvh", scale=0.01)
+
+# Save to the framework's internal format
 motion.SaveToNPZ("character")
 ```
 
-Batch convert entire directories using the built-in CLI:
-
 ```bash
+# Batch-convert a directory of motion files
 convert --input_dir path/to/motions --output_dir path/to/output
 ```
 
-See the [Loading Motion Data](https://facebookresearch.github.io/ai4animationpy/getting-started/quickstart/#importing-motion-data) guide for setup details.
+See [`test/`](test) for runnable examples covering character loading, motion playback, and network training, and [`Demos/`](Demos) for full interactive scenes.
 
-<summary><b>Public Datasets</b></summary>
-Several public motion capture datasets are compatible with the framework:
-<br>
+## Models
 
-| Dataset | Character | Download |
-|---------|-----------|----------|
-| [Cranberry](https://github.com/sebastianstarke/AI4Animation) | Cranberry | [FBX & GLB](https://starke-consult.de/AI4Animation/SIGGRAPH_2024/Cranberry_Dataset.zip) |
-| [100Style retargeted](https://github.com/orangeduck/100style-retarget) | Geno | [BVH](https://theorangeduck.com/media/uploads/Geno/100style-retarget/bvh.zip) / [FBX](https://theorangeduck.com/media/uploads/Geno/100style-retarget/fbx.zip) |
-| [LaFan](https://github.com/ubisoft/ubisoft-laforge-animation-dataset) | Ubisoft LaFan | [BVH](https://github.com/ubisoft/ubisoft-laforge-animation-dataset/blob/master/lafan1/lafan1.zip) |
-| [LaFan resolved](https://github.com/orangeduck/lafan1-resolved) | Geno | [BVH](https://theorangeduck.com/media/uploads/Geno/lafan1-resolved/bvh.zip) / [FBX](https://theorangeduck.com/media/uploads/Geno/lafan1-resolved/fbx.zip) |
-| [ZeroEggs retargeted](https://github.com/orangeduck/zeroeggs-retarget) | Geno | [BVH](https://theorangeduck.com/media/uploads/Geno/zeroeggs-retarget/bvh.zip) / [FBX](https://theorangeduck.com/media/uploads/Geno/zeroeggs-retarget/fbx.zip) |
-| [Motorica retargeted](https://github.com/orangeduck/motorica-retarget) | Geno | [BVH](https://theorangeduck.com/media/uploads/Geno/motorica-retarget/bvh.zip) / [FBX](https://theorangeduck.com/media/uploads/Geno/motorica-retarget/fbx.zip) |
-| [NSM](https://github.com/sebastianstarke/AI4Animation/tree/master/AI4Animation/SIGGRAPH_Asia_2019) | Anubis | [BVH](https://starke-consult.de/AI4Animation/SIGGRAPH_Asia_2019/MotionCapture.zip) |
-| [MANN](https://github.com/sebastianstarke/AI4Animation/tree/master/AI4Animation/SIGGRAPH_2018) | Dog | [BVH](https://starke-consult.de/AI4Animation/SIGGRAPH_2018/MotionCapture.zip) |
+The repo includes a number of trained checkpoints (`*.pth`) exploring different strategies for future motion prediction:
 
+| Family | Checkpoints | Idea |
+|---|---|---|
+| **Autoregressive MLP** | `AutoregressiveMLP_model.pth` | Frame-by-frame feed-forward prediction, rolled forward autoregressively |
+| **Autoregressive LSTM** | `Autoregressive_LSTM_Model.pth`, `Autoregressive_LSTM_Model_100style.pth`, `Autoregressive_LSTM_Model_Bonus.pth` | Recurrent model conditioned on motion history, with a variant trained on the 100STYLE dataset |
+| **Conditional LSTM** | `conditional_lstm_full.pth`, `v1_conditional_lstm_full.pth`, `v2_conditional_lstm_full.pth` | LSTM conditioned on auxiliary signals (e.g. style/action), with iterative versions |
+| **Latent LSTM** | `latent_lstm_layernorm_full_model.pth`, `latent_lstm_with_vae_full_model.pth` | Recurrent prediction in a learned latent space rather than raw pose space |
+| **VAE** | `vae_full_model.pth`, `vae_full_model_100style.pth` | Variational autoencoder over pose/motion features |
+| **Flow Matching** | `flow_matching_raw_model.pth`, `flow_matching_latent_model.pth`, `flow_matching_latent_bonus.pth`, `flow_matching_vae.pth`, `adaln_flow_matching_full.pth` | Generative flow-matching approaches, in raw and latent space, including an AdaLN-conditioned variant |
+| **LayerNorm MLP** | `layernorm_full_model.pth` | Feed-forward baseline with layer normalization |
+
+Loss curves for the flow-matching models are saved as `loss_history_FlowMatchingRaw.png` and `loss_history_FlowMatchingLatent.png` in the repo root. See [`test/model_loading.py`](test/model_loading.py) and [`test/network_training.py`](test/network_training.py) for how to load and train these models using the framework's `Tensor`, `DataSampler`, and `Dataset` utilities.
+
+## Failed Attempts
+
+[`Failed_Attemps/`](Failed_Attemps) contains earlier architecture experiments that were tried and ultimately not used for the final models.
+
+## Demos
+
+The underlying framework ships several interactive demo scenes, runnable standalone or headless:
+
+- **Locomotion** — stylized biped locomotion controller
+- **Quadruped Locomotion** — gait transitions and action poses
+- **Training** — live training visualization
+- **Inverse Kinematics** — real-time IK solving
+- **Motion Capture Import** — GLB/FBX/BVH/NPZ loading
+- **Motion Editor** — animation browsing and feature visualization
+
+Run any demo from [`Demos/`](Demos), e.g.:
+
+```bash
+python Demos/Locomotion/locomotion.py
+```
+
+## Acknowledgements
+
+This project builds directly on:
+
+- [**AI4AnimationPy**](https://github.com/sebastianstarke/AI4Animation) by [Paul Starke](https://github.com/paulstarke) and [Sebastian Starke](https://github.com/sebastianstarke) — the underlying framework for motion data processing, the ECS/runtime architecture, math and animation modules, and the real-time renderer.
+- The original [AI4Animation](https://github.com/sebastianstarke/AI4Animation) research line and its associated SIGGRAPH publications.
+- Public motion capture datasets used during development, including Cranberry, 100STYLE, and LaFan — see the upstream [AI4AnimationPy documentation](https://facebookresearch.github.io/ai4animationpy/) for dataset sources and licensing.
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before opening issues or pull requests.
 
 ## License
 
-AI4AnimationPy is licensed under the [CC BY-NC 4.0 License](LICENSE).
+This project is licensed under the [CC BY-NC 4.0 License](LICENSE) — non-commercial use only, with attribution.
