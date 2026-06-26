@@ -1,5 +1,3 @@
-# implements an autoregressive LSTM similar to Demos/AI/Autoencoder/programLSTM.py
-# but includes motion conditioning based on Cranberry motions
 import os
 import sys
 from pathlib import Path
@@ -41,14 +39,13 @@ FRAMERATE = 30 # frames per second
 DRAW_INTERVAL = 500 # how often to display plots
 BONES = Definitions.FULL_BODY_NAMES # array of strings representing joints
 
-# =========================================================================
 # CONDITIONAL DIMENSIONS (Bonus)
-# =========================================================================
+
 FRAME_DIM = 12 * len(BONES) # every joint has 12 dimensions
 # position 3, forward 3, upward 3, velocity 3
 CONDITION_DIM = 2 # [1, 0] for Neutral (Walking), [0, 1] for Target (Crouching)
 INPUT_DIM = FRAME_DIM + CONDITION_DIM # Total input to the network
-# =========================================================================
+
 
 HIDDEN_DIM = 512 # neurons in the hidden layers
 WINDOW_SIZE = 5 # it looks at the past 5 frames
